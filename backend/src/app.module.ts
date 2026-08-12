@@ -104,6 +104,10 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
 // Platform Services & Infrastructure (ZoeConnect Core Platform)
 import { PlatformModule } from './modules/platform/platform.module';
 
+// zoe-platform integration — Mortuary (Phase 2, Stage A: entities/module
+// registration only; no controllers/routes exposed yet).
+import { MortuaryModule } from './modules/mortuary/mortuary.module';
+
 @Module({
   imports: [
     // ── Configuration ───────────────────────────────────────────
@@ -245,6 +249,9 @@ import { PlatformModule } from './modules/platform/platform.module';
     // Backup & Restore — self-hosted full-installation backups + cloud
     // per-tenant isolated backups. See backup.module.ts.
     BackupModule,
+    // zoe-platform integration — Mortuary (Phase 2, Stage A). See
+    // mortuary.module.ts's doc comment.
+    MortuaryModule,
   ],
   controllers: [AppController],
   providers: [
