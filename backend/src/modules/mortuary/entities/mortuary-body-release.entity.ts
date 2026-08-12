@@ -45,8 +45,8 @@ export class MortuaryBodyRelease {
   @Column({ name: 'legal_documents_object_key', type: 'text', nullable: true })
   legalDocumentsObjectKey: string | null;
 
-  @Column({ name: 'release_date_time', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  releaseDateTime: Date;
+  @Column({ name: 'release_date_time', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', nullable: true })
+  releaseDateTime: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

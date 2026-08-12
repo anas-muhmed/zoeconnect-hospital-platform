@@ -23,8 +23,8 @@ export class MortuaryCabinAllocation {
   @Column({ name: 'cabin_id', type: 'uuid' })
   cabinId: string;
 
-  @Column({ name: 'admission_date_time', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  admissionDateTime: Date;
+  @Column({ name: 'admission_date_time', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', nullable: true })
+  admissionDateTime: Date | null;
 
   @Column({ name: 'release_date_time', type: 'timestamp', nullable: true })
   releaseDateTime: Date | null;
@@ -32,20 +32,20 @@ export class MortuaryCabinAllocation {
   @Column({ name: 'estimated_release_date_time', type: 'timestamp', nullable: true })
   estimatedReleaseDateTime: Date | null;
 
-  @Column({ name: 'advance_amount', type: 'real', default: 0 })
-  advanceAmount: number;
+  @Column({ name: 'advance_amount', type: 'real', default: 0, nullable: true })
+  advanceAmount: number | null;
 
-  @Column({ name: 'hourly_rate', type: 'real', default: 50 })
-  hourlyRate: number;
+  @Column({ name: 'hourly_rate', type: 'real', default: 50, nullable: true })
+  hourlyRate: number | null;
 
-  @Column({ name: 'min_hours', type: 'int', default: 4 })
-  minHours: number;
+  @Column({ name: 'min_hours', type: 'int', default: 4, nullable: true })
+  minHours: number | null;
 
-  @Column({ name: 'free_hours', type: 'int', default: 0 })
-  freeHours: number;
+  @Column({ name: 'free_hours', type: 'int', default: 0, nullable: true })
+  freeHours: number | null;
 
-  @Column({ type: 'varchar', length: 50, default: 'Allocated' })
-  status: string;
+  @Column({ type: 'varchar', length: 50, default: 'Allocated', nullable: true })
+  status: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

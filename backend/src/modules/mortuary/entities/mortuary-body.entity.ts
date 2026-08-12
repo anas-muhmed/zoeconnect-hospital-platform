@@ -1,9 +1,9 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn,
+  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique,
 } from 'typeorm';
 
 /**
- * Mortuary integration (Phase 2, Stage A). Ports `bodies`, tenant-scoped.
+ * Mortuary integration (Phase 2, Stage A/B). Ports `bodies`, tenant-scoped.
  *
  * `bodyNumber` generation (hospital-clientId-prefixed, per-hospital
  * sequence — see `generateBodyNumber()` in the source `config/db.js`) is
@@ -16,8 +16,13 @@ import {
  * the original schema stored these as strings with no format constraint,
  * and changing that is a real behavior change, not a pure architecture
  * port, so it's deliberately out of scope here.
+ *
+ * Stage B deviation (D2): `bodyNumber` moves from the source's flat
+ * GLOBAL UNIQUE to UNIQUE ("tenantId", "bodyNumber") — see the Stage B
+ * migration's doc comment for rationale.
  */
 @Entity('mortuary_bodies')
+@Unique(['tenantId', 'bodyNumber'])
 export class MortuaryBody {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -25,7 +30,7 @@ export class MortuaryBody {
   @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId: string;
 
-  @Column({ name: 'body_number', type: 'varchar', length: 50, unique: true })
+  @Column({ name: 'body_number', type: 'varchar', length: 50 })
   bodyNumber: string;
 
   @Column({ name: 'body_type', type: 'varchar', length: 50 })
@@ -85,11 +90,11 @@ export class MortuaryBody {
   @Column({ name: 'witness2_contact', type: 'varchar', length: 50, nullable: true })
   witness2Contact: string | null;
 
-  @Column({ name: 'billing_status', type: 'varchar', length: 50, default: 'PENDING' })
-  billingStatus: string;
+  @Column({ name: 'billing_status', type: 'varchar', length: 50, default: 'PENDING', nullable: true })
+  billingStatus: string | null;
 
-  @Column({ type: 'varchar', length: 50, default: 'Registered' })
-  status: string;
+  @Column({ type: 'varchar', length: 50, default: 'Registered', nullable: true })
+  status: string | null;
 
   @Column({ name: 'police_station_name', type: 'varchar', length: 255, nullable: true })
   policeStationName: string | null;
@@ -104,8 +109,8 @@ export class MortuaryBody {
   @Column({ name: 'noc_certificate_object_key', type: 'text', nullable: true })
   nocCertificateObjectKey: string | null;
 
-  @Column({ name: 'freezer_required', type: 'smallint', default: 1 })
-  freezerRequired: number;
+  @Column({ name: 'freezer_required', type: 'smallint', default: 1, nullable: true })
+  freezerRequired: number | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

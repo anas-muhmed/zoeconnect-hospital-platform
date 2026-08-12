@@ -24,11 +24,11 @@ export class MortuaryBilling {
   @Column({ name: 'cabin_allocation_id', type: 'uuid', nullable: true })
   cabinAllocationId: string | null;
 
-  @Column({ name: 'total_amount', type: 'real', default: 0 })
-  totalAmount: number;
+  @Column({ name: 'total_amount', type: 'real', default: 0, nullable: true })
+  totalAmount: number | null;
 
-  @Column({ name: 'discount_amount', type: 'real', default: 0 })
-  discountAmount: number;
+  @Column({ name: 'discount_amount', type: 'real', default: 0, nullable: true })
+  discountAmount: number | null;
 
   @Column({ name: 'discount_reason', type: 'text', nullable: true })
   discountReason: string | null;
@@ -36,14 +36,14 @@ export class MortuaryBilling {
   @Column({ name: 'concession_authority_id', type: 'uuid', nullable: true })
   concessionAuthorityId: string | null;
 
-  @Column({ name: 'net_amount', type: 'real', default: 0 })
-  netAmount: number;
+  @Column({ name: 'net_amount', type: 'real', default: 0, nullable: true })
+  netAmount: number | null;
 
-  @Column({ name: 'services_amount', type: 'real', default: 0 })
-  servicesAmount: number;
+  @Column({ name: 'services_amount', type: 'real', default: 0, nullable: true })
+  servicesAmount: number | null;
 
-  @Column({ type: 'varchar', length: 50, default: 'Pending' })
-  status: string;
+  @Column({ type: 'varchar', length: 50, default: 'Pending', nullable: true })
+  status: string | null;
 
   @Column({ name: 'settled_at', type: 'timestamp', nullable: true })
   settledAt: Date | null;
@@ -66,8 +66,8 @@ export class MortuaryBilling {
   @Column({ name: 'advance_amount', type: 'numeric', precision: 10, scale: 2, nullable: true })
   advanceAmount: string | null;
 
-  @Column({ name: 'staff_concession', type: 'smallint', default: 0 })
-  staffConcession: number;
+  @Column({ name: 'staff_concession', type: 'smallint', default: 0, nullable: true })
+  staffConcession: number | null;
 
   @Column({ name: 'staff_name', type: 'varchar', length: 255, nullable: true })
   staffName: string | null;

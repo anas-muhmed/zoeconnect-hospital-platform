@@ -14,8 +14,8 @@ export class MortuaryHousekeepingTask {
   @Column({ name: 'cabin_id', type: 'uuid' })
   cabinId: string;
 
-  @Column({ type: 'varchar', length: 50, default: 'PENDING' })
-  status: string;
+  @Column({ type: 'varchar', length: 50, default: 'PENDING', nullable: true })
+  status: string | null;
 
   @Column({ name: 'assigned_to', type: 'varchar', length: 255, nullable: true })
   assignedTo: string | null;

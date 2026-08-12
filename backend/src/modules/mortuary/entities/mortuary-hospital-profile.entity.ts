@@ -30,9 +30,16 @@ export class MortuaryHospitalProfile {
   @Column({ name: 'tenant_id', type: 'uuid', unique: true })
   tenantId: string;
 
-  /** Prefix used for body-number generation and staff self-registration matching. Unique across all tenants (was globally unique in the source schema). */
-  @Column({ name: 'client_id', type: 'varchar', length: 50, unique: true })
-  clientId: string;
+  /**
+   * Prefix used for body-number generation and staff self-registration
+   * matching. Unique across all tenants (was globally unique in the
+   * source schema). Nullable: the source's own `hospitals.client_id`
+   * ALTER never added NOT NULL, and `generateBodyNumber()` has an
+   * explicit `|| 'HOSP'` fallback for exactly this case — preserved,
+   * not tightened.
+   */
+  @Column({ name: 'client_id', type: 'varchar', length: 50, unique: true, nullable: true })
+  clientId: string | null;
 
   /** Object-repository storage key (Stage E), not a raw URL — replaces the old `hospitals.logo` TEXT column. */
   @Column({ name: 'logo_object_key', type: 'text', nullable: true })

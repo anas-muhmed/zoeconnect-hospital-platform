@@ -29,8 +29,8 @@ export class MortuarySystemSettings {
   @Column({ name: 'tenant_id', type: 'uuid', unique: true })
   tenantId: string;
 
-  @Column({ name: 'mortuary_name', type: 'varchar', length: 255, default: 'MOSC Medical College Mortuary' })
-  mortuaryName: string;
+  @Column({ name: 'mortuary_name', type: 'varchar', length: 255, default: 'MOSC Medical College Mortuary', nullable: true })
+  mortuaryName: string | null;
 
   /** Object-repository storage key (Stage E). See class doc re: duplication with MortuaryHospitalProfile.logoObjectKey. */
   @Column({ name: 'mortuary_logo_object_key', type: 'text', nullable: true })
@@ -50,8 +50,8 @@ export class MortuarySystemSettings {
   })
   pricingModel: 'tiered_flat_hourly' | 'flat_daily' | 'free';
 
-  @Column({ name: 'daily_rate', type: 'numeric', precision: 10, scale: 2, default: 500.0 })
-  dailyRate: string;
+  @Column({ name: 'daily_rate', type: 'numeric', precision: 10, scale: 2, default: 500.0, nullable: true })
+  dailyRate: string | null;
 
   @Column({ name: 'staff_discount_percent', type: 'numeric', precision: 5, scale: 2, default: 100 })
   staffDiscountPercent: string;

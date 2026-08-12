@@ -20,11 +20,11 @@ export class MortuaryConcessionAuthority {
   @Column({ type: 'varchar', length: 255, nullable: true })
   department: string | null;
 
-  @Column({ name: 'max_discount_percent', type: 'real', default: 100 })
-  maxDiscountPercent: number;
+  @Column({ name: 'max_discount_percent', type: 'real', default: 100, nullable: true })
+  maxDiscountPercent: number | null;
 
-  @Column({ name: 'is_active', type: 'boolean', default: true })
-  isActive: boolean;
+  @Column({ name: 'is_active', type: 'boolean', default: true, nullable: true })
+  isActive: boolean | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

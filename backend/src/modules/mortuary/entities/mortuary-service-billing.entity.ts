@@ -38,8 +38,8 @@ export class MortuaryServiceBilling {
   @Column({ name: 'net_amount', type: 'numeric', precision: 10, scale: 2, default: 0.0 })
   netAmount: string;
 
-  @Column({ type: 'varchar', length: 50, default: 'Pending' })
-  status: string;
+  @Column({ type: 'varchar', length: 50, default: 'Pending', nullable: true })
+  status: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
