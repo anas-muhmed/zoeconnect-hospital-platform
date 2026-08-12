@@ -126,4 +126,113 @@ describe('MortuaryCabinAllocationsService.create', () => {
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(result).toBeDefined();
   });
+
+  // Stage C.1 — Step 5 rule #8 (previously ported, not unit-tested).
+  // Source priority chain (allocationController.js::createAllocation):
+  // allocation-time override -> body's own recorded estimatedDaysOfStay ->
+  // 3-day fallback. Asserted by inspecting the insert() call's
+  // estimatedReleaseDateTime, since that's the only observable trace of
+  // daysOfStay in this service's public surface.
+  describe('estimated days of stay priority', () => {
+    const admissionFixedNow = new Date('2026-01-01T00:00:00.000Z');
+    let insertedAllocation: any;
+
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(admissionFixedNow);
+      dataSource = {
+        transaction: jest.fn(async (cb: (manager: any) => Promise<void>) => {
+          const manager = {
+            insert: jest.fn((entity: any, values: any) => {
+              if (entity === MortuaryCabinAllocation) insertedAllocation = values;
+              return Promise.resolve(undefined);
+            }),
+            update: jest.fn().mockResolvedValue(undefined),
+          };
+          await cb(manager);
+        }),
+      };
+      buildService();
+      scopedAllocationRepo.findOneBy.mockResolvedValue(null);
+    });
+
+    afterEach(() => jest.useRealTimers());
+
+    it('uses the allocation-time override when given, even if the body has its own recorded value', async () => {
+      scopedBodyRepo.findOneBy.mockResolvedValue(makeBody({ estimatedDaysOfStay: 10 }));
+      await service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100, estimatedDaysOfStay: 5 });
+      const expected = new Date(admissionFixedNow);
+      expected.setDate(expected.getDate() + 5);
+      expected.setHours(23, 59, 0, 0);
+      expect(insertedAllocation.estimatedReleaseDateTime).toEqual(expected);
+    });
+
+    it('falls back to the body\'s own recorded estimatedDaysOfStay when no override is given', async () => {
+      scopedBodyRepo.findOneBy.mockResolvedValue(makeBody({ estimatedDaysOfStay: 7 }));
+      await service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 });
+      const expected = new Date(admissionFixedNow);
+      expected.setDate(expected.getDate() + 7);
+      expected.setHours(23, 59, 0, 0);
+      expect(insertedAllocation.estimatedReleaseDateTime).toEqual(expected);
+    });
+
+    it('falls back to 3 days when neither an override nor the body\'s own value is present', async () => {
+      scopedBodyRepo.findOneBy.mockResolvedValue(makeBody({ estimatedDaysOfStay: null }));
+      await service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 });
+      const expected = new Date(admissionFixedNow);
+      expected.setDate(expected.getDate() + 3);
+      expected.setHours(23, 59, 0, 0);
+      expect(insertedAllocation.estimatedReleaseDateTime).toEqual(expected);
+    });
+  });
+});
+
+// Stage C.1 — Step 5 rule #9 (previously ported, not unit-tested).
+// Source: allocationController.js::releaseAllocation — release is blocked
+// unless the body's billing_status is already 'SETTLED'.
+describe('MortuaryCabinAllocationsService.release', () => {
+  let scopedBodyRepo: { findOneBy: jest.Mock };
+  let scopedAllocationRepo: { findOneBy: jest.Mock };
+  let dataSource: { transaction: jest.Mock };
+  let service: MortuaryCabinAllocationsService;
+
+  beforeEach(() => {
+    scopedAllocationRepo = { findOneBy: jest.fn().mockResolvedValue({ id: 'alloc-1', tenantId: TENANT_ID, bodyId: 'body-1', cabinId: 'cabin-1' }) };
+    scopedBodyRepo = { findOneBy: jest.fn().mockResolvedValue(makeBody({ billingStatus: 'SETTLED' })) };
+    dataSource = {
+      transaction: jest.fn(async (cb: (manager: any) => Promise<void>) => {
+        const manager = { insert: jest.fn().mockResolvedValue(undefined), update: jest.fn().mockResolvedValue(undefined) };
+        await cb(manager);
+      }),
+    };
+    service = new MortuaryCabinAllocationsService(
+      {} as any,
+      scopedAllocationRepo as any,
+      scopedBodyRepo as any,
+      {} as any,
+      {} as MortuarySettingsService,
+      dataSource as any,
+    );
+  });
+
+  it('rejects release when the body bill is not settled', async () => {
+    scopedBodyRepo.findOneBy.mockResolvedValue(makeBody({ billingStatus: 'GENERATED' }));
+    await expect(service.release(TENANT_ID, 'alloc-1')).rejects.toThrow('Bill must be settled before release');
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects release when the body has no billing row at all yet', async () => {
+    scopedBodyRepo.findOneBy.mockResolvedValue(null);
+    await expect(service.release(TENANT_ID, 'alloc-1')).rejects.toThrow(BadRequestException);
+  });
+
+  it('allows release once the bill is settled, updating allocation + cabin + housekeeping atomically', async () => {
+    const result = await service.release(TENANT_ID, 'alloc-1');
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(result.releaseDateTime).toBeDefined();
+  });
+
+  it('throws NotFoundException for an allocation that does not belong to this tenant', async () => {
+    scopedAllocationRepo.findOneBy.mockResolvedValue(null);
+    await expect(service.release(TENANT_ID, 'not-mine')).rejects.toThrow(NotFoundException);
+  });
 });

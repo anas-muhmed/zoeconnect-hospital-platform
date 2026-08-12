@@ -16,6 +16,7 @@ import { MortuaryBodyRelease } from './entities/mortuary-body-release.entity';
 import { MortuaryHousekeepingTask } from './entities/mortuary-housekeeping-task.entity';
 
 import { createTenantScopedRepositoryProvider } from '../platform/tenant/repositories/tenant-scoped-repository.provider';
+import { TenantModule } from '../platform/tenant/tenant.module';
 
 import { MortuaryBodyTypesService } from './services/mortuary-body-types.service';
 import { MortuaryConcessionAuthoritiesService } from './services/mortuary-concession-authorities.service';
@@ -75,6 +76,14 @@ import { MortuaryHousekeepingController } from './controllers/mortuary-housekeep
       MortuaryBodyRelease,
       MortuaryHousekeepingTask,
     ]),
+    // Required for TenantContextInterceptor (used on every Mortuary
+    // controller) and TenantContextStorage (which every
+    // TenantScopedRepository provider below depends on) to be resolvable
+    // in this module's injector context. Missing this import is a real,
+    // caught-at-boot NestJS dependency-resolution error, not a style
+    // preference — found during Stage C.1's live-boot verification
+    // (see Stage C.1 report).
+    TenantModule,
   ],
   controllers: [
     MortuaryReferenceController,
