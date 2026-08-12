@@ -165,6 +165,8 @@ import { DeactivateTokenQueueModule1791700000000 } from './migrations/1791700000
 import { EnsureCoreModuleRegistryRows1791800000000 } from './migrations/1791800000000-EnsureCoreModuleRegistryRows';
 import { CreateMortuarySchema1792000000000 } from './migrations/1792000000000-CreateMortuarySchema';
 import { SeedMortuaryRbac1793000000000 } from './migrations/1793000000000-SeedMortuaryRbac';
+import { CreateDrugIndentingSchema1794000000000 } from './migrations/1794000000000-CreateDrugIndentingSchema';
+import { SeedDrugIndentingRbac1795000000000 } from './migrations/1795000000000-SeedDrugIndentingRbac';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -341,6 +343,8 @@ export const AppDataSource = new DataSource({
     EnsureCoreModuleRegistryRows1791800000000,
     CreateMortuarySchema1792000000000,
     SeedMortuaryRbac1793000000000,
+    CreateDrugIndentingSchema1794000000000,
+    SeedDrugIndentingRbac1795000000000,
   ],
   migrationsTableName: 'typeorm_migrations',
 });

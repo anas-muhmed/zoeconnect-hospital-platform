@@ -108,6 +108,9 @@ import { PlatformModule } from './modules/platform/platform.module';
 // registration only; no controllers/routes exposed yet).
 import { MortuaryModule } from './modules/mortuary/mortuary.module';
 
+// zoe-platform integration — Drug Indenting (ZoeConnect delivery phase).
+import { DrugIndentingModule } from './modules/drug-indenting/drug-indenting.module';
+
 @Module({
   imports: [
     // ── Configuration ───────────────────────────────────────────
@@ -252,6 +255,7 @@ import { MortuaryModule } from './modules/mortuary/mortuary.module';
     // zoe-platform integration — Mortuary (Phase 2, Stage A). See
     // mortuary.module.ts's doc comment.
     MortuaryModule,
+    DrugIndentingModule,
   ],
   controllers: [AppController],
   providers: [
