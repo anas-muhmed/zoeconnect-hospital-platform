@@ -1,0 +1,13 @@
+{
+  "name": "@hdsp/connector-installer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Packaging project for ZoeConnect Connector 1.0 Deployment (2026-07-22, Phase 1: Packaging). Produces HDSP_Connector_1.0.0_x64.exe from connector/, connector-manager/, and connector-tray/'s build outputs plus this folder's install/uninstall-service helper scripts. See README.md for the full pipeline and why nothing here has been built/verified in this sandbox (no Windows environment).",
+  "scripts": {
+    "package:scripts": "pkg scripts/install-service.js --targets node18-win-x64 --output build/install-service.exe && pkg scripts/uninstall-service.js --targets node18-win-x64 --output build/uninstall-service.exe",
+    "build:installer": "echo Run this on Windows with Inno Setup installed: iscc HDSP_Connector.iss"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}

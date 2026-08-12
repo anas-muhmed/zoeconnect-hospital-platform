@@ -1,0 +1,310 @@
+<!--
+  ============================================================================
+  HDSP Registration Widget — COMPLETE HIS-side integration reference
+  ============================================================================
+  ⚠ DISCLOSURE — READ BEFORE USING
+  This file is a best-effort, production-grade REFERENCE TEMPLATE. It was
+  written by adapting the two pre-existing draft artifacts already in this
+  repo (registration-widget-integration.xhtml and
+  registrationflow-widget-patch.xhtml) to the finished HDSP-side contract
+  (auth, postMessage events, retry/timeout handling) implemented in this
+  change. No HIS Java/JSF source code exists anywhere in this environment/
+  repository -- there is no registrationFlowForm.xhtml, no HdspSessionBean,
+  no HIS managed-bean or filter source to inspect or edit directly. This
+  template has NOT been pasted into or compiled against a real HIS project.
+  A developer with access to the actual HIS source must:
+    1. Confirm the real page/template name and where "headerInclude" /
+       "body" (or equivalent) regions exist in it.
+    2. Confirm #{hdspSessionBean.accessToken} and #{hdspSessionBean.branchId}
+       (or your actual equivalents) exist and return a valid short-lived HDSP
+       JWT and branch code for the logged-in receptionist. See "HIS-side
+       token issuance" below for what these values must satisfy.
+    3. Adjust EL expressions / bean method names to match the real
+       registration save handler.
+  Everything below this banner is written to be pasted as-is once (1)-(3)
+  are confirmed; nothing here is pseudocode.
+  ============================================================================
+
+  HIS-side token issuance (prerequisite, not implemented in HDSP):
+  ------------------------------------------------------------------
+  #{hdspSessionBean.accessToken} must be a genuine HDSP JWT access token,
+  minted for the receptionist's HDSP user account. HDSP does not perform HIS
+  login -- the two systems' identities must already be linked (e.g. HIS
+  employee code == HDSP user.hisEmployeeCode) and the token obtained by the
+  HIS server calling HDSP's normal POST /api/v1/auth/login (service-to-service,
+  using per-terminal HDSP credentials provisioned for this purpose) once per
+  HIS session, then caching it on hdspSessionBean. HDSP requires no second,
+  widget-specific login: once this single token is injected into the iframe
+  URL, the widget renews it silently for the rest of the session (see
+  useRegistrationWidget.ts / POST /auth/widget-token/renew) -- HIS never
+  needs to re-inject a token unless the receptionist's own HIS/HDSP session
+  ends.
+  ============================================================================
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="http://xmlns.jcp.org/jsf/facelets"
+                xmlns:h="http://xmlns.jcp.org/jsf/html"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                xmlns:a4j="http://richfaces.org/a4j">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       BLOCK A — place inside <ui:define name="headerInclude">
+       (or your page's equivalent <head>-scoped include region)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <ui:define name="headerInclude">
+
+    <h:outputScript>
+    //<![CDATA[
+    (function () {
+      'use strict';
+
+      var FRAME_ID   = 'hdspTokenWidget';
+      var WIDGET_SRC = '/hdsp/widget/registration';
+      var READY_TIMEOUT_MS = 8000;
+      var MAX_LOAD_RETRIES = 2;
+
+      var state = {
+        ready: false,
+        loadRetries: 0,
+        readyTimeoutHandle: null,
+        reservedToken: sessionStorage.getItem('hdsp_reserved_token') || null,
+        reservationId: sessionStorage.getItem('hdsp_reservation_id') || null,
+      };
+
+      // ── Origin-validated inbound listener (Widget → HIS) ─────────────────
+      window.addEventListener('message', function (evt) {
+        // Same-origin only: the widget is served same-origin via the Nginx
+        // proxy specifically so this check is meaningful (see
+        // docs/his-integration/nginx-hdsp-widget.conf). Reject anything else.
+        if (evt.origin !== window.location.origin) return;
+
+        var d = evt.data;
+        if (!d || d.source !== 'hdsp-registration-widget' || !d.type) return;
+
+        switch (d.type) {
+          case 'HDSP_WIDGET_READY':
+            state.ready = true;
+            if (state.readyTimeoutHandle) {
+              clearTimeout(state.readyTimeoutHandle);
+              state.readyTimeoutHandle = null;
+            }
+            setWidgetStatus('ready', '');
+            break;
+
+          case 'HDSP_TOKEN_RESERVED':
+            state.reservedToken = d.tokenNumber;
+            state.reservationId = d.reservationId;
+            sessionStorage.setItem('hdsp_reserved_token', d.tokenNumber);
+            sessionStorage.setItem('hdsp_reservation_id', d.reservationId);
+            setWidgetStatus('reserved', 'Token ' + d.tokenNumber + ' selected — complete registration to continue.');
+            break;
+
+          case 'HDSP_TOKEN_RELEASED':
+            state.reservedToken = null;
+            state.reservationId = null;
+            sessionStorage.removeItem('hdsp_reserved_token');
+            sessionStorage.removeItem('hdsp_reservation_id');
+            setWidgetStatus('idle', '');
+            break;
+
+          case 'HDSP_MAPPING_SUCCESS':
+            state.reservedToken = null;
+            state.reservationId = null;
+            sessionStorage.removeItem('hdsp_reserved_token');
+            sessionStorage.removeItem('hdsp_reservation_id');
+            setWidgetStatus('mapped', 'Token ' + d.tokenNumber + ' linked to patient.');
+            break;
+
+          case 'HDSP_MAPPING_ERROR':
+            setWidgetStatus('error', d.message || 'Token linking failed. Please retry from the widget panel.');
+            break;
+
+          case 'HDSP_AUTH_EXPIRED':
+            // Silent renewal failed on the HDSP side -- the only recovery is
+            // to reload the iframe with a fresh token (re-run of the same
+            // token-issuance step used at page load, see banner above).
+            setWidgetStatus('error', 'HDSP session expired — reloading panel…');
+            reloadWidget();
+            break;
+
+          case 'HDSP_WIDGET_ERROR':
+            setWidgetStatus('error', d.message || 'HDSP widget encountered an error.');
+            break;
+        }
+      });
+
+      // ── Outbound: HIS → Widget, called after a successful patient save ──
+      // Call this from your registration form's oncomplete callback.
+      window.notifyHdspWidget = function (hisPatientId, mrn, patientName, visitId) {
+        var frame = document.getElementById(FRAME_ID);
+        if (!frame || !frame.contentWindow || !state.ready) {
+          // Widget not confirmed ready -- queue one retry shortly rather than
+          // silently dropping the notification.
+          setTimeout(function () {
+            var f = document.getElementById(FRAME_ID);
+            if (f && f.contentWindow) {
+              f.contentWindow.postMessage({
+                type: 'HIS_PATIENT_REGISTERED',
+                hisPatientId: hisPatientId || '',
+                mrn: mrn || '',
+                patientName: patientName || '',
+                visitId: visitId || '',
+              }, window.location.origin);
+            }
+          }, 500);
+          return;
+        }
+        frame.contentWindow.postMessage({
+          type: 'HIS_PATIENT_REGISTERED',
+          hisPatientId: hisPatientId || '',
+          mrn: mrn || '',
+          patientName: patientName || '',
+          visitId: visitId || '',
+        }, window.location.origin);
+      };
+
+      // ── Iframe load / retry / timeout handling ───────────────────────────
+      function onFrameLoad() {
+        // The widget itself confirms readiness via HDSP_WIDGET_READY once its
+        // initial queue fetch succeeds; this timeout catches the case where
+        // the frame loaded (network-wise) but the widget's JS never ran or
+        // never reached a ready state (e.g. blocked script, HDSP backend down).
+        state.readyTimeoutHandle = setTimeout(function () {
+          if (!state.ready) {
+            if (state.loadRetries < MAX_LOAD_RETRIES) {
+              state.loadRetries += 1;
+              reloadWidget();
+            } else {
+              setWidgetStatus('error', 'Token queue widget is unavailable. Registration can continue without it.');
+            }
+          }
+        }, READY_TIMEOUT_MS);
+      }
+
+      function reloadWidget() {
+        state.ready = false;
+        var frame = document.getElementById(FRAME_ID);
+        if (!frame) return;
+        // Cache-bust so a stale/expired-token iframe is guaranteed to reload,
+        // not served from bfcache with the old (now-blacklisted) token.
+        var base = frame.getAttribute('data-src-base') || frame.src.split('?')[0];
+        var branchId = frame.getAttribute('data-branch-id') || '';
+        var token = frame.getAttribute('data-token') || '';
+        frame.src = base + '?branchId=' + encodeURIComponent(branchId)
+          + '&token=' + encodeURIComponent(token)
+          + '&_r=' + Date.now();
+        onFrameLoad();
+      }
+
+      function setWidgetStatus(status, message) {
+        var el = document.getElementById('hdspWidgetStatus');
+        if (!el) return;
+        el.setAttribute('data-status', status);
+        el.textContent = message || '';
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        var frame = document.getElementById(FRAME_ID);
+        if (frame) {
+          frame.addEventListener('load', onFrameLoad);
+        }
+      });
+    })();
+    //]]>
+    </h:outputScript>
+
+    <style>
+    #hdspWidgetPanel {
+        position: fixed;
+        right: 0;
+        top: 0;
+        width: 360px;
+        height: 100vh;
+        z-index: 1000;
+        background: #fff;
+        border-left: 1px solid #e2e8f0;
+        box-shadow: -4px 0 20px rgba(0,0,0,.08);
+        display: flex;
+        flex-direction: column;
+    }
+    #hdspWidgetPanel .hdsp-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: #1468b3;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    #hdspWidgetStatus {
+        font-size: 11px;
+        padding: 4px 14px;
+        color: #64748b;
+        min-height: 16px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    #hdspWidgetStatus[data-status="error"] { color: #dc2626; background: #fef2f2; }
+    #hdspWidgetStatus[data-status="reserved"] { color: #b45309; background: #fffbeb; }
+    #hdspWidgetStatus[data-status="mapped"] { color: #15803d; background: #f0fdf4; }
+    #hdspWidgetPanel iframe {
+        flex: 1;
+        border: none;
+        width: 100%;
+    }
+    /* Push main content left so it is not hidden under the panel.
+       Remove/adjust if your layout already reserves this space. */
+    body.hdsp-widget-active { margin-right: 360px !important; }
+    </style>
+
+  </ui:define>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       BLOCK B — place at the end of <ui:define name="body">
+       (just before its closing tag)
+       ═══════════════════════════════════════════════════════════════════════ -->
+
+  <div id="hdspWidgetPanel">
+    <div class="hdsp-panel-header">
+      <span>&#9679; Registration Token Queue</span>
+    </div>
+    <div id="hdspWidgetStatus" data-status="idle"></div>
+    <iframe
+      id="hdspTokenWidget"
+      data-src-base="/hdsp/widget/registration"
+      data-branch-id="#{hdspSessionBean.branchId}"
+      data-token="#{hdspSessionBean.accessToken}"
+      src="/hdsp/widget/registration?branchId=#{hdspSessionBean.branchId}&amp;token=#{hdspSessionBean.accessToken}"
+      title="HDSP Registration Token Queue"
+      sandbox="allow-scripts allow-same-origin allow-forms"
+      loading="lazy"
+    />
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       BLOCK C — modify your existing patient-save button's oncomplete.
+       If it already has an oncomplete handler, append the notifyHdspWidget()
+       call inside it rather than replacing it. REPLACE the #{...} EL
+       expressions with the real bean properties your save action exposes.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <!--
+  <a4j:commandButton
+    id="btnSaveRegistration"
+    value="Save Registration"
+    action="#{registrationBean.savePatient}"
+    oncomplete="
+      if (data.status === 'success') {
+        notifyHdspWidget(
+          '#{registrationBean.savedPatientId}',
+          '#{registrationBean.savedMrn}',
+          '#{registrationBean.savedPatientName}',
+          '#{registrationBean.savedVisitId}'
+        );
+      }
+    "
+    render="registrationForm"
+  />
+  -->
+
+</ui:composition>

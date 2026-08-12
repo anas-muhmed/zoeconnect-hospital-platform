@@ -1,0 +1,142 @@
+name: Deploy to Cloud (ECS)
+
+# Phase 12 (Task 12.3 — "Cloud deploy automation"). Replaces the manual
+# `terraform apply` / `aws ecs update-service` sequence `CLOUD_DEPLOY.md`
+# (Phase 9) currently documents as a by-hand runbook. Deliberately does NOT
+# replace that runbook's manual fallback — CLOUD_DEPLOY.md stays as-is per
+# Task 12.4-adjacent guidance to keep a documented manual escape hatch.
+#
+# Triggered manually (`workflow_dispatch`) with the version to deploy — NOT
+# automatically on every image build, because "which released version goes
+# to production, and when" is an operational/business decision, not a CI
+# event. `build-images.yml` (Task 12.2) is what produces the versioned
+# images this workflow deploys; this workflow only ever consumes a version
+# that workflow already pushed.
+#
+# Two sequential environment stages, `staging` then `production` — GitHub
+# Environments, not job-level `if:` branching, specifically so
+# `production`'s required-reviewer protection rule (a GitHub repository
+# setting, NOT expressible in this YAML — see PHASE_12_IMPLEMENTATION_PLAN.md
+# for the one-time manual setup this workflow assumes exists) is what
+# actually gates the production job, satisfying the roadmap's "manual
+# approval gate for production" requirement structurally, not by a comment
+# promising a human will remember to check something.
+#
+# Never run against a real AWS account from this sandbox -- no credentials
+# exist here. Written and reasoned through carefully, same posture as every
+# other Phase 9/12 infrastructure file in this project; validate with a real
+# `terraform plan` before trusting it for an actual cutover.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (must already exist in ECR — see build-images.yml)'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy-staging:
+    name: Deploy to staging
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      alb_dns: ${{ steps.tf_out.outputs.alb_dns }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        working-directory: infrastructure/terraform
+        run: terraform init
+
+      - name: Terraform plan
+        working-directory: infrastructure/terraform
+        run: |
+          terraform plan \
+            -var-file=staging.tfvars \
+            -var="api_image_tag=${{ inputs.version }}" \
+            -var="worker_image_tag=${{ inputs.version }}" \
+            -var="frontend_image_tag=${{ inputs.version }}" \
+            -out=tfplan
+
+      - name: Terraform apply
+        working-directory: infrastructure/terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Capture outputs
+        id: tf_out
+        working-directory: infrastructure/terraform
+        run: echo "alb_dns=$(terraform output -raw alb_dns_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test staging
+        run: |
+          set -e
+          for i in $(seq 1 30); do
+            if curl -sf "https://${{ steps.tf_out.outputs.alb_dns }}/api/v1/health/live"; then break; fi
+            sleep 10
+            if [ "$i" -eq 30 ]; then echo "Staging never became healthy after deploy"; exit 1; fi
+          done
+          echo "Staging smoke test passed for version ${{ inputs.version }}."
+
+  deploy-production:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production   # required-reviewer protection rule lives here, in repo settings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        working-directory: infrastructure/terraform
+        run: terraform init
+
+      - name: Terraform plan
+        working-directory: infrastructure/terraform
+        run: |
+          terraform plan \
+            -var-file=production.tfvars \
+            -var="api_image_tag=${{ inputs.version }}" \
+            -var="worker_image_tag=${{ inputs.version }}" \
+            -var="frontend_image_tag=${{ inputs.version }}" \
+            -out=tfplan
+
+      - name: Terraform apply
+        working-directory: infrastructure/terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Capture outputs
+        id: tf_out
+        working-directory: infrastructure/terraform
+        run: echo "alb_dns=$(terraform output -raw alb_dns_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test production
+        run: |
+          set -e
+          for i in $(seq 1 30); do
+            if curl -sf "https://${{ steps.tf_out.outputs.alb_dns }}/api/v1/health/live"; then break; fi
+            sleep 10
+            if [ "$i" -eq 30 ]; then echo "Production never became healthy after deploy -- investigate before closing this run"; exit 1; fi
+          done
+          echo "Production smoke test passed for version ${{ inputs.version }}."
+
+      - name: Record deployed version
+        run: |
+          echo "Deployed ${{ inputs.version }} to production at $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,23 @@
+{
+  "name": "@hdsp/connector-manager-ui",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ZoeConnect Connector Manager -- local web UI (Task #103, 2026-07-22). A Vite/React SPA, built as static assets and served by the Connector Windows Service's own local REST API server (see connector/src/api/local-api-server.ts). This package produces ONLY the static build output (dist/) -- it has no server of its own and is never run standalone against a real backend other than the Connector's local API on 127.0.0.1.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.0"
+  }
+}

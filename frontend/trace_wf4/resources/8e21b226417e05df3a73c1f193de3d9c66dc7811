@@ -1,0 +1,142 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: incident-management\workflow.spec.ts >> Incident Management Workflow >> Reporter can log a new incident
+- Location: tests\incident-management\workflow.spec.ts:21:7
+
+# Error details
+
+```
+Error: expect(page).toHaveURL(expected) failed
+
+Expected pattern: /.*\/incident\/[a-f0-9-]{36}/
+Received string:  "http://localhost:3000/incident/new"
+Timeout: 5000ms
+
+Call log:
+  - Expect "toHaveURL" with timeout 5000ms
+    14 × locator resolved to <html lang="en">…</html>
+       - unexpected value "http://localhost:3000/incident/new"
+
+```
+
+```yaml
+- alert
+- img "HDSP"
+- paragraph: HDSP
+- paragraph: Hospital Digital Service Platform
+- paragraph: Powered by LIFE HIS
+- list:
+  - paragraph: PLATFORM
+  - listitem:
+    - button "Dashboard"
+  - paragraph: MODULES
+  - listitem:
+    - button "Incident Management"
+  - list:
+    - listitem:
+      - button "Incidents"
+  - paragraph: DOCUMENT STUDIO
+  - paragraph: SYSTEM
+- text: T
+- paragraph: Test Reporter
+- paragraph: INCIDENT_REPORTER
+- button "Change Password"
+- button "Sign Out"
+- alert: Trial license — 30 day(s) remaining.
+- main:
+  - heading "Report New Incident" [level=5]
+  - paragraph: Quick report form (< 2 mins)
+  - heading "Essential Information" [level=6]
+  - separator
+  - text: Date & Time of Incident
+  - textbox "Date & Time of Incident": 2026-07-27T16:44
+  - text: Department / Location
+  - textbox "Department / Location": Emergency Department
+  - text: Category
+  - combobox "Patient Safety"
+  - text: Type
+  - combobox "Fall"
+  - text: Severity
+  - combobox "High"
+  - text: What happened? (Description)
+  - textbox "What happened? (Description)": Patient fell out of bed while reaching for water.
+  - heading "Involvements (Optional)" [level=6]
+  - separator
+  - text: Search Affected Patient (Optional)
+  - textbox "Search Affected Patient (Optional)":
+    - /placeholder: MRN, name or mobile…
+  - text: Search Affected Employee (Optional)
+  - combobox "Search Affected Employee (Optional)"
+  - button "Open"
+  - paragraph: Drag & Drop files here or click to browse
+  - button "Browse Files"
+  - heading "Advanced Settings" [level=3]:
+    - button "Advanced Settings":
+      - paragraph: Advanced Settings
+  - button "Cancel"
+  - button "Submit Incident"
+```
+
+# Test source
+
+```ts
+  1  | import { test, expect } from '@playwright/test';
+  2  | import path from 'path';
+  3  | 
+  4  | import fs from 'fs';
+  5  | 
+  6  | test.describe('Incident Management Workflow', () => {
+  7  | 
+  8  |   // Reporter persona
+  9  |   test.use({ storageState: path.join(__dirname, '../../.auth/reporter.json') });
+  10 | 
+  11 |   test.beforeEach(async ({ page }) => {
+  12 |     const sessionData = fs.readFileSync(path.join(__dirname, '../../.auth/reporter-session.json'), 'utf8');
+  13 |     const sessionObj = JSON.parse(sessionData);
+  14 |     await page.addInitScript((storage: Record<string, string>) => {
+  15 |       for (const [key, value] of Object.entries(storage)) {
+  16 |         window.sessionStorage.setItem(key, value);
+  17 |       }
+  18 |     }, sessionObj);
+  19 |   });
+  20 | 
+  21 |   test('Reporter can log a new incident', async ({ page }) => {
+  22 |     // 1. Navigate to Incident reporting form
+  23 |     await page.goto('/incident/new');
+  24 |     
+  25 |     // 2. Fill out the form
+  26 |     await page.fill('input[name="department"]', 'Emergency Department');
+  27 |     
+  28 |     // MUI Selects (click the select box, then click the option in the listbox)
+  29 |     await page.locator('div[id="mui-component-select-categoryId"]').click();
+  30 |     await page.getByRole('option', { name: 'Patient Safety' }).click();
+  31 | 
+  32 |     // Type becomes enabled after Category is selected
+  33 |     await page.locator('div[id="mui-component-select-typeId"]').click();
+  34 |     await page.getByRole('option', { name: 'Fall' }).click();
+  35 | 
+  36 |     await page.locator('div[id="mui-component-select-severityCode"]').click();
+  37 |     await page.getByRole('option', { name: 'High' }).click();
+  38 | 
+  39 |     await page.fill('textarea[name="description"]', 'Patient fell out of bed while reaching for water.');
+  40 | 
+  41 |     // 3. Submit
+  42 |     await page.getByRole('button', { name: 'Submit Incident' }).click();
+  43 | 
+  44 |     // 4. Verify successful redirect and creation
+> 45 |     await expect(page).toHaveURL(/.*\/incident\/[a-f0-9-]{36}/);
+     |                        ^ Error: expect(page).toHaveURL(expected) failed
+  46 |     await expect(page.locator('text=Patient fell out of bed')).toBeVisible();
+  47 |     await expect(page.locator('text=Patient Safety')).toBeVisible();
+  48 |     await expect(page.locator('text=Fall')).toBeVisible();
+  49 |     await expect(page.locator('text=High')).toBeVisible();
+  50 |   });
+  51 | });
+  52 | 
+```

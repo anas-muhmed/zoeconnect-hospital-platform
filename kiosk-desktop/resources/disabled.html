@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>HDSP Kiosk -- Disabled</title>
+<style>
+  html, body {
+    margin: 0; height: 100%; width: 100%;
+    background: #1c0f0f; color: #f8fafc;
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card { text-align: center; max-width: 520px; padding: 40px; }
+  .icon { font-size: 48px; margin-bottom: 16px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+  p { color: rgba(248,250,252,0.7); font-size: 15px; line-height: 1.6; margin: 0 0 8px; }
+  .hint { color: rgba(248,250,252,0.45); font-size: 13px; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">&#9888;&#65039;</div>
+    <h1 id="title">This kiosk has been disabled</h1>
+    <p id="message">Your HDSP administrator has disabled this till. It will resume automatically once re-enabled -- no action needed here.</p>
+    <p class="hint">Press Ctrl+Alt+K to re-activate with a new code if this till was permanently revoked.</p>
+  </div>
+</body>
+</html>

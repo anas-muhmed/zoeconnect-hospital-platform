@@ -1,0 +1,56 @@
+{
+  "_comment": "HDSP Worker service — Phase 9, Task 9.2/9.6. Identical image to hdsp-api (same backend.Dockerfile build), distinguished only by PROCESS_ROLE=worker below. Sized per the 'Small (pilot)' tier (1 task) from HDSP_Cloud_Migration_Architecture_Review.md Section 17. NOT attached to the ALB -- see infrastructure/terraform/alb.tf, which only targets hdsp-api and hdsp-frontend.",
+  "_scaling_note": "Keep desiredCount=1 until a distributed lock is added for the in-process @Cron jobs (password-reset expiry, campaign scheduler, token daily reset/analytics, CMS cleanup -- Phase 8 Task 8.6's tenant-iterated jobs). Scaling this service beyond 1 task reintroduces the exact duplicate-tick risk PROCESS_ROLE=api was built to avoid on the API tier (see HDSP_Cloud_Migration_Architecture_Review.md's 'second replica would double-process every tick' finding) -- @nestjs/schedule has no built-in distributed lock. Bull queue consumers (NotificationProcessor, AuditProcessor, etc.) ARE safe to scale beyond 1 task -- Bull's per-job Redis lock already handles concurrent consumers correctly; only the cron side is the constraint on this task's desiredCount.",
+  "family": "hdsp-worker",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/hdsp-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/hdsp-worker-task-role",
+  "containerDefinitions": [
+    {
+      "name": "hdsp-worker",
+      "image": "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/hdsp-backend:${IMAGE_TAG}",
+      "essential": true,
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PROCESS_ROLE", "value": "worker" },
+        { "name": "DEPLOYMENT_MODE", "value": "cloud" },
+        { "name": "LOG_TO_STDOUT", "value": "true" },
+        { "name": "STORAGE_DRIVER", "value": "s3" },
+        { "name": "ORACLE_TRANSPORT", "value": "cloud_relay" },
+        { "name": "LICENSE_PROVIDER_MODE", "value": "subscription" },
+        { "name": "NOTIFICATION_PROVIDER_MODE", "value": "cloud" },
+        { "name": "REDIS_TLS", "value": "true" }
+      ],
+      "secrets": [
+        { "name": "DB_HOST", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:host::" },
+        { "name": "DB_PORT", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:port::" },
+        { "name": "DB_NAME", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:dbname::" },
+        { "name": "DB_USER", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:username::" },
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:password::" },
+        { "name": "REDIS_HOST", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/elasticache-connection:host::" },
+        { "name": "REDIS_PORT", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/elasticache-connection:port::" },
+        { "name": "JWT_SECRET", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/jwt:secret::" },
+        { "name": "JWT_REFRESH_SECRET", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/jwt:refreshSecret::" },
+        { "name": "S3_BUCKET", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/s3:bucket::" },
+        { "name": "S3_REGION", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/s3:region::" },
+        { "name": "AWS_ACCESS_KEY_ID", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/aws-notifications:accessKeyId::" },
+        { "name": "AWS_SECRET_ACCESS_KEY", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/aws-notifications:secretAccessKey::" },
+        { "name": "SES_FROM_EMAIL", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/aws-notifications:sesFromEmail::" },
+        { "name": "CONNECTOR_REDIS_URL", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/elasticache-connection:connectorUrl::" }
+      ],
+      "_health_check_note": "No HTTP healthCheck block -- PROCESS_ROLE=worker never calls app.listen() (see main.ts), so there is no port to probe. ECS falls back to container-status (is the process alive) for this task definition; if deeper liveness is needed later, add a lightweight TCP or file-touch heartbeat, not an HTTP endpoint that would require standing up a second listener just for this.",
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/hdsp-worker",
+          "awslogs-region": "${REGION}",
+          "awslogs-stream-prefix": "worker"
+        }
+      }
+    }
+  ],
+  "_service_notes": "ECS service: desiredCount=1 (see _scaling_note above), NOT registered with any ALB target group, deploymentConfiguration.minimumHealthyPercent=0/maximumPercent=200 acceptable here (brief queue/cron processing gap during deploy is tolerable, unlike API request-serving downtime)."
+}

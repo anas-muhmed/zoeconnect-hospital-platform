@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "1.0.0",
+  "formId": "nursing_assessment_v1",
+  "category": "clinical",
+  "dataSources": [],
+  "pages": [
+    {
+      "id": "page1",
+      "size": "A4",
+      "orientation": "portrait",
+      "components": [
+        {
+          "id": "demographics_section",
+          "type": "section",
+          "fieldKey": "demographics",
+          "geometry": { "x": 10, "y": 10, "w": 770, "h": 100, "z": 0, "pageId": "page1" },
+          "logic": {},
+          "validation": [],
+          "permissions": { "visibleTo": [], "editableBy": [] },
+          "audit": { "trackChanges": false },
+          "props": { "label": "Patient Demographics" },
+          "children": [
+            {
+              "id": "patient_name",
+              "type": "textbox",
+              "fieldKey": "patient_name",
+              "geometry": { "x": 10, "y": 10, "w": 300, "h": 30, "z": 1, "pageId": "page1" },
+              "logic": {},
+              "validation": [{ "type": "required", "message": "Name is required" }],
+              "permissions": { "visibleTo": [], "editableBy": [] },
+              "audit": { "trackChanges": true },
+              "props": { "label": "Full Name", "placeholder": "Enter full name" }
+            },
+            {
+              "id": "patient_dob",
+              "type": "textbox",
+              "fieldKey": "patient_dob",
+              "geometry": { "x": 320, "y": 10, "w": 150, "h": 30, "z": 1, "pageId": "page1" },
+              "logic": {},
+              "validation": [{ "type": "required", "message": "DOB is required" }],
+              "permissions": { "visibleTo": [], "editableBy": [] },
+              "audit": { "trackChanges": true },
+              "props": { "label": "Date of Birth", "placeholder": "YYYY-MM-DD" }
+            }
+          ]
+        },
+        {
+          "id": "vitals_section",
+          "type": "section",
+          "fieldKey": "vitals",
+          "geometry": { "x": 10, "y": 120, "w": 770, "h": 150, "z": 0, "pageId": "page1" },
+          "logic": {},
+          "validation": [],
+          "permissions": { "visibleTo": [], "editableBy": [] },
+          "audit": { "trackChanges": false },
+          "props": { "label": "Vital Signs" },
+          "children": [
+            {
+              "id": "vitals_table",
+              "type": "table",
+              "fieldKey": "vitals_table",
+              "geometry": { "x": 10, "y": 10, "w": 750, "h": 100, "z": 1, "pageId": "page1" },
+              "logic": {},
+              "validation": [],
+              "permissions": { "visibleTo": [], "editableBy": [] },
+              "audit": { "trackChanges": false },
+              "props": {
+                "columns": [
+                  { "key": "time", "label": "Time", "type": "text" },
+                  { "key": "bp", "label": "BP (mmHg)", "type": "text" },
+                  { "key": "hr", "label": "Heart Rate", "type": "number" },
+                  { "key": "temp", "label": "Temperature (°C)", "type": "number" }
+                ],
+                "minRows": 1,
+                "maxRows": 10
+              }
+            }
+          ]
+        },
+        {
+          "id": "burn_assessment_section",
+          "type": "section",
+          "fieldKey": "burn_assessment_section",
+          "geometry": { "x": 10, "y": 280, "w": 770, "h": 400, "z": 0, "pageId": "page1" },
+          "logic": {},
+          "validation": [],
+          "permissions": { "visibleTo": [], "editableBy": [] },
+          "audit": { "trackChanges": false },
+          "props": { "label": "Burn Assessment (Rule of Nines)" },
+          "children": [
+            {
+              "id": "burn_chart",
+              "type": "burn_assessment",
+              "fieldKey": "burn_chart_1",
+              "geometry": { "x": 10, "y": 10, "w": 400, "h": 350, "z": 1, "pageId": "page1" },
+              "logic": {},
+              "validation": [],
+              "permissions": { "visibleTo": [], "editableBy": [] },
+              "audit": { "trackChanges": true },
+              "props": {
+                "label": "Adult Burn Chart",
+                "assetId": null,
+                "regions": [
+                  { "id": "head", "label": "Head (9%)", "svgPath": "" },
+                  { "id": "torsoFront", "label": "Torso Front (18%)", "svgPath": "" },
+                  { "id": "torsoBack", "label": "Torso Back (18%)", "svgPath": "" },
+                  { "id": "armLeft", "label": "Left Arm (9%)", "svgPath": "" },
+                  { "id": "armRight", "label": "Right Arm (9%)", "svgPath": "" },
+                  { "id": "legLeft", "label": "Left Leg (18%)", "svgPath": "" },
+                  { "id": "legRight", "label": "Right Leg (18%)", "svgPath": "" },
+                  { "id": "groin", "label": "Groin (1%)", "svgPath": "" }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "dental_chart_section",
+          "type": "section",
+          "fieldKey": "dental_chart_section",
+          "geometry": { "x": 10, "y": 690, "w": 770, "h": 300, "z": 0, "pageId": "page1" },
+          "logic": {},
+          "validation": [],
+          "permissions": { "visibleTo": [], "editableBy": [] },
+          "audit": { "trackChanges": false },
+          "props": { "label": "Dental Assessment" },
+          "children": [
+            {
+              "id": "dental_chart",
+              "type": "dental_chart",
+              "fieldKey": "dental_chart_1",
+              "geometry": { "x": 10, "y": 10, "w": 750, "h": 250, "z": 1, "pageId": "page1" },
+              "logic": {},
+              "validation": [],
+              "permissions": { "visibleTo": [], "editableBy": [] },
+              "audit": { "trackChanges": true },
+              "props": {
+                "chartType": "adult",
+                "label": "Adult Dental Chart"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2936 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:s="http://jboss.com/products/seam/taglib"
+	xmlns:rich="http://richfaces.ajax4jsf.org/rich"
+	xmlns:t="http://myfaces.apache.org/tomahawk"
+	xmlns:a4j="https://ajax4jsf.dev.java.net/ajax"
+	template="/pages/common/applicationForHotKeySupport.xhtml"
+	xmlns:life="http://life.erp.com/html"
+	xmlns:c="http://java.sun.com/jstl/core"
+	xmlns:his="http://his.com.web/html">
+	<ui:define name="favorites">
+		<his:fvbox linkName="New Registration"
+			url="pf/patientRegistrationForm/load/12/4/" />
+	</ui:define>
+	<ui:define name="body">
+		<style>
+			.inputbox{
+				width:200px;
+			}
+			.selectbox{
+				width:168px;
+			}
+			.control-label{
+				text-align: left !important;
+			}
+			input:focus,select:focus { 
+			    outline: none !important;
+			    border: solid 2px #2196f3 !important;
+			}
+			.is-appointment:focus{
+				box-shadow: 0px 0px 1px #2196f3;
+			}
+			.badge-counter{
+		    left: 79%;
+    		top: 19%;
+		    position: fixed;
+		    max-width: 20vw;
+		    max-height: 20vh;
+		    z-index: 100;
+		}
+		.badge-icon{
+			width:22px;
+			height:22px;
+			background-color:#0281a9;
+			margin-left:90%;
+			position:fixed;
+			border-radius:11px;
+			display:flex;
+			align-items:center;
+			justify-content:center;
+			top:20%;
+			right:1%;
+			z-index:1000;
+		}
+		.badge-icon:hover{
+			width:22px;
+			height:22px;
+			background-color:black;
+			margin-left:90%;
+			position:fixed;
+			border-radius:11px;
+			display:flex;
+			align-items:center;
+			justify-content:center;
+			top:20%;
+			right:1%;
+			cursor:pointer;
+			z-index:1000;
+		}
+		.badge-content{
+			width:100%;
+			height:100%;
+			/*background-color:#f3f1ee;*/
+			background: rgb(80,129,241);
+    		background: linear-gradient(90deg, rgba(80,129,241,1) 0%, rgba(100,164,241,1) 0%, rgba(0,181,255,1) 100%);
+			box-shadow: 5px 5px 5px -3px gray;
+			border-radius:10px;
+			padding: 5px 0px 8px 0px;
+			opacity:.98;
+		}
+		.line-container{
+			width:100%;
+			height:100%;
+			padding-top:4%;
+			padding-left:4%;
+			padding-right:2%;
+		}
+		.line{
+			height:18%;
+			width:100%;
+			display:flex;
+			align-items:center;
+			border-bottom:1px solid #ffffff40;
+			color:white;
+			font-weight:bold;
+		}
+		.line-sec1{
+			width:50%;
+			text-align:left;
+		}
+		.line-sec2{
+			width:45%;
+			text-align:right;
+		}
+		.token-no{
+			width:10%;
+			height:30px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: bold;
+			border:1px solid grey;
+			margin:2px;
+			background-color:#56eb8a;
+			border-radius:25px;
+		}
+		.rich-tool-tip{
+			border-radius: 12px !important;
+			border: 1px solid black !important;
+		} 
+		.simpleTogglePanelHeader{
+			padding:2px !important;
+		}
+		.reg-form{
+			font-size: 10pt;
+		}
+		.input-responsive-with-btn{
+			max-width: 175px;
+			min-width: 100px;
+			width: 175px;
+		}
+		.rich-calendar-input{
+			max-width: 130px !important;
+			min-width: 100px !important;
+			width: 175px !important;
+		}
+		@media (max-width: 1366px) {
+		  .input-responsive {
+		    width: 150px;
+		  }
+		  .input-responsive-with-btn{
+			width: 125px;
+		  }
+		  .rich-calendar-input{
+		  	width: 125px !important;
+		  }
+		  .reg-form{
+			font-size: 9pt;
+		  }
+		}
+		.hiddenDropDown {
+        	display: none;
+    	}
+		.mandatoryfeild.filled {
+			border: 1px solid #ced4da !important;
+		}
+
+		/* ==================================================================
+		   HDSP Token Number field -- inline validation status badge.
+		   Replaces the old iframe/panel widget (removed; see
+		   docs/his-integration/DIRECT_TOKEN_MRN_MAPPING.md). No panel, no
+		   badge icon, no iframe -- just a small ✔/✘ indicator next to the
+		   plain text field added near the UHID/MRN column above.
+		   ================================================================== */
+		.hdsp-token-status{
+			display:inline-block;
+			margin-left:6px;
+			font-size:11px;
+			font-weight:bold;
+		}
+		.hdsp-token-status.hdsp-token-ok{ color:#166534; }
+		.hdsp-token-status.hdsp-token-bad{ color:#991b1b; }
+		.hdsp-token-status.hdsp-token-checking{ color:#64748b; }
+		/* Small always-visible feedback line for after Register is clicked --
+		   the only remaining feedback surface once the field itself is
+		   cleared on a successful link. */
+		.hdsp-status-pill{
+			position:fixed;
+			bottom:4%;
+			right:1%;
+			max-width:260px;
+			z-index:1000;
+			font-size:11px;
+			line-height:1.4;
+			padding:5px 10px;
+			border-radius:8px;
+			background:#334155;
+			color:#f1f5f9;
+			box-shadow: 0 1px 4px rgba(0,0,0,.3);
+			display:none;
+		}
+		.hdsp-status-pill.hdsp-status-visible{ display:block; }
+		.hdsp-status-pill.hdsp-status-success{ background:#166534; color:#f0fdf4; }
+		.hdsp-status-pill.hdsp-status-error{ background:#991b1b; color:#fef2f2; }
+		</style>
+		<f:view>
+			<a4j:queue id="registrationa4jQueueId" name="registrationa4jQueue"
+				onrequestqueue="disableTransactionButtons();"
+				onrequestdequeue="enableTransactionButtons();" />
+			<h:form id="navigation">
+				<ui:include src="patientregistrationsavestate.xhtml" />
+				<t:saveState value="#{patientRegistrationForm.check_box}" />
+				<t:saveState value="#{patientRegistrationForm.ssnNo}" />
+				<t:saveState value="#{patientRegistrationForm.ssnNo1}" />
+				<t:saveState value="#{patientRegistrationForm.ssnNo2}" />
+				<t:saveState value="#{patientRegistrationForm.ssnNo3}" />
+				<t:saveState value="#{patientRegistrationForm.ssnNo4}" />
+				<t:saveState value="#{patientRegistrationForm.patientCheck}" />
+				<t:saveState value="#{patientRegistrationForm.endDate}" />
+				<t:saveState value="#{patientRegistrationForm.startDate}" />
+				<t:saveState value="#{patientRegistrationForm.prefix}" />
+				<t:saveState value="#{patientRegistrationForm.firstName}" />
+				<t:saveState value="#{patientRegistrationForm.lastName}" />
+				<t:saveState value="#{patientRegistrationForm.birthDay}" />
+				<t:saveState value="#{patientRegistrationForm.nationalIdNo}" />
+				<t:saveState value="#{patientRegistrationForm.insurance}" />
+				<t:saveState value="#{patientRegistrationForm.patient}" />
+				<t:saveState value="#{patientRegistrationForm.isRegistered}" />
+				<t:saveState value="#{patientRegistrationForm.patBroughtList}" />
+				<t:saveState value="#{patientRegistrationForm.patientimagedisplay}" />
+				<t:saveState value="#{patientRegistrationForm.preregistration}" />
+				<t:saveState value="#{patientRegistrationForm.imageCapturePage}" />
+				<t:saveState value="#{patientRegistrationForm.appointmentType}" />
+				<t:saveState value="#{patientRegistrationForm.isFirstConsltnTypeChange}" />
+				<t:saveState value="#{patientRegistrationForm.registrationServicesCount}" />
+				<t:saveState value="#{patientRegistrationForm.externalPatient}" />
+				<t:saveState value="#{patientRegistrationForm.doctorsavailabletimefrom}" />
+				<t:saveState value="#{patientRegistrationForm.followupquotatime}" />
+				<t:saveState value="#{patientRegistrationForm.newregquotatime}" />
+				<t:saveState value="#{commonForm.appointmentQuotaDeptSiteWise}" />
+				<t:saveState value="#{patientRegistrationForm.patientDuplicateList}" />
+				<t:saveState value="#{patientRegistrationForm.patientSmartCard}" />
+				<t:saveState value="#{patientRegistrationForm.oldpatient}" />
+				<t:saveState value="#{patientRegistrationForm.registrationIdRenew}" />
+				<t:saveState value="#{patientRegisterList.searchUtil}" />
+				<t:saveState value="#{patientRegistrationForm.originalFilename}" />
+				<t:saveState value="#{patientRegistrationForm.duplicateFilename}" />
+				<t:saveState value="#{patientRegistrationForm.generatedBy}" />
+				<t:saveState value="#{patientRegistrationForm.barCodePath}" />
+				<t:saveState value="#{patientRegistrationForm.labelpath}" />
+				<t:saveState value="#{patientRegistrationForm.defaultplan}" />
+				<t:saveState value="#{mrdfileissuebean.forMRDBarCode}"></t:saveState>
+					<t:saveState value="#{mrdfileissuebean.patientId}"></t:saveState>
+					<t:saveState value="#{mrdfileissuebean.enableAutoPrint}"></t:saveState>
+					<t:saveState value="#{mrdfileissuebean.labPdfFile}"></t:saveState>
+					<t:saveState value="#{mrdfileissuebean.patientname}"></t:saveState>
+					<t:saveState value="#{patientRegistrationForm.staf}"></t:saveState>
+					<t:saveState value="#{patientRegistrationForm.regtypeCheck}"></t:saveState>
+				<t:saveState value="#{patientnotificationbean.patientnotification}" />
+				<t:saveState value="#{patientRegistrationForm.serviceEligibilityForRegistrationCharge}" />
+				<t:saveState value="#{patientRegistrationForm.autoRegistrationFromAppointment}" />
+				<t:saveState value="#{patientRegistrationForm.loadConsultants}" />
+				<t:saveState value="#{patientRegistrationForm.autoSelectQueueType}" />
+				<t:saveState value="#{patientRegistrationForm.fromHealthPackage}" />
+				<t:saveState value="#{patientRegistrationForm.panchayatList}" />
+				<t:saveState value="#{patientRegistrationForm.cityPin}" />
+				<t:saveState value="#{patientRegistrationForm.isBillgenerated}" />
+				<t:saveState value="#{patientRegistrationForm.registrationPageNav}" />
+				<t:saveState value="#{patientRegistrationForm.cityNameTemp}" />
+				<t:saveState value="#{patientRegistrationForm.employeeId}" />
+				<t:saveState value="#{patientRegistrationForm.modifyFromHR}" />
+					<t:saveState value="#{patientRegistrationForm.reload}" />
+				<t:saveState value="#{patientRegistrationForm.availableQueueNoList}"/>
+					<t:saveState value="#{patientRegistrationForm.webpreregistrationId}" />
+					<t:saveState value="#{patientRegistrationForm.registration_Type}" />
+				<t:saveState value="#{patientRegistrationForm.esiPolicy}" />
+				<t:saveState value="#{patientRegistrationForm.fromED}" />
+				<t:saveState value="#{patientRegistrationForm.patRegistrationTypeList}" />
+				<t:saveState value="#{patientRegistrationForm.isModify}" />
+				<t:saveState value="#{patientRegistrationForm.registrationCategory}" />
+				<t:saveState value="#{patientRegistrationForm.regisType}" />
+				<t:saveState value="#{patientRegistrationForm.registrationType}" />
+				<t:saveState value="#{patientRegistrationForm.isOnlineRegistration}" />
+				<t:saveState value="#{patientRegistrationForm.couplepatient}" />
+				<t:saveState value="#{servicecentertokensystemform.counterType}" />
+				<t:saveState value="#{patientRegistrationForm.isCoupleClicked}" />
+				<t:saveState value="#{patientRegistrationForm.localityTabNavigationDef}" />
+				<t:saveState value="#{patientRegistrationForm.showpaymentutils}" />
+				<t:saveState value="#{patientRegistrationForm.temporaryCredit}" />
+				<t:saveState value="#{patientRegistrationForm.isMyPatientDef}" />
+				<script type="text/javascript">
+				
+			    		var isNameEntered = #{patientRegistrationForm.patient.firstName ne null};
+			    		var isGenderEntered = #{patientRegistrationForm.patient.gender.lookupId ne null};
+			    		var isAgeEntered = #{patientRegistrationForm.patient.age ne null};
+			    		var ismobileEntered= #{patientRegistrationForm.patient.mobileNo ne null};
+			    		var ispinEntered= #{patientRegistrationForm.emergencyAddress.pin ne null};
+			    		function checkPatientDetails() {
+				    		if(#{patientRegistrationForm.allowPatientDupCheck}){
+					    		if (isNameEntered &amp;&amp; isGenderEntered &amp;&amp; isAgeEntered &amp;&amp; ismobileEntered &amp;&amp; ispinEntered){ 
+						    		checkforPatientDetails();
+					    		}
+				    		}
+			    		}
+				
+				
+				 function printReport(mrno,id,catId,regId,isRenew,isDirectRenew,isRePrint){	
+						//var tempmrno=mrno.replace(/^\s+|\s+$/g,"");
+						if(regId!=""){
+							var locale = document.getElementById('lang').value;
+							var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos/?type_=3";
+							var extraParam="&amp;registrationId="+regId+"&amp;isRenew="+isRenew+"&amp;isDirectRenew="+isDirectRenew+"&amp;isRePrint="+isRePrint+"&amp;serverpath="+serverpath;
+						  	var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=RegistrationCard.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;__locale=" + locale+extraParam;
+						  	window.open(MyPage,'receiptWindow');
+						}  
+				}
+				 function printWristReport(mrno,id,catId,regId,isRenew,isDirectRenew,isRePrint){	
+						//var tempmrno=mrno.replace(/^\s+|\s+$/g,"");
+						if(regId!=""){
+							var locale = document.getElementById('lang').value;
+							var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos/?type_=3";
+							var extraParam="&amp;registrationId="+regId+"&amp;isRenew="+isRenew+"&amp;isDirectRenew="+isDirectRenew+"&amp;isRePrint="+isRePrint+"&amp;serverPath="+serverpath;
+						  	var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=RegistrationCard1.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;__locale=" + locale+extraParam;
+						  	window.open(MyPage,'WristReport');
+						}  
+				}
+			function printInvoiceReport(invoiceId){	
+				
+						if(invoiceId!=""){
+							var locale = document.getElementById('lang').value;
+							var extraParam="&amp;invoiceId="+invoiceId;
+							strDate = document.getElementById("navigation:createdDate").innerHTML;
+							strId = document.getElementById("navigation:createdId").innerHTML;
+						  	var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=FinalBill.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;__locale=" + locale+extraParam+"&amp;isDraft=no&amp;isDuplicate=no&amp;isPackage=no&amp;preparedId="+strId+"&amp;preparedDate="+strDate;
+						  	window.open(MyPage,'receiptWindow');
+						}  
+				}	
+				  function printSmartCardReport(mrno){	
+					 
+					var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos/?type_=3&amp;filename=";
+				  	var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=html&amp;ReportName=smartcard.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;MRN="+mrno+"&amp;ServerPath="+serverpath;
+				  	window.open(MyPage,'mywindow2');   
+				 }
+				 
+				function WriteSmartCard(v)
+				{
+					var myApp = document.getElementById("SmartCardControl");
+					myApp.WriteSmartCard(v, v.length); // return value 0 is success
+					alert(v);
+				}
+				function openDirectAppointment(){
+					var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/pages/scheduler/registrationappointmentschedule.jsf";
+				  	window.open(serverpath,'AppointmentSchedule');
+				}
+				function confirmSmartCardtextfile(filename){
+				    	var baseurl = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos?type_=99&amp;filename="+filename;
+   					 window.open(baseurl,'mywindow2'); 
+				}
+				function confirmSmartCardlabel(filename){
+			    	var baseurl = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos?type_=99&amp;filename="+filename;
+					 window.open(baseurl,'mywindow3'); 
+			}
+				function printbillcumreceipt(invoiceId,visitId,generatedBy,mrn)
+				{
+					if(invoiceId!=""){
+						if(invoiceId!=0){
+							var locale = document.getElementById('lang').value;
+							var extraParam="&amp;invoiceId="+invoiceId+"&amp;visitId="+visitId;
+							strDate = document.getElementById("navigation:createdDate").innerHTML;
+							strId = document.getElementById("navigation:createdId").innerHTML;
+// 						  	var MyPage2 = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=FinalBillForOP.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;__locale=" + locale+extraParam+"&amp;isDraft=no&amp;isDuplicate=no&amp;isPackage=no&amp;preparedId="+strId+"&amp;preparedDate="+strDate+"&amp;generatedBy="+generatedBy;
+// 						 	var w =window.open(MyPage2);
+// 						  	w.focus();
+// 	                        w.print();
+	                        var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=FinalBillForEncounter.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;__locale=" + locale+extraParam+"&amp;isDraft=no&amp;isDuplicate=no&amp;isPackage=no&amp;preparedId="+strId+"&amp;preparedDate="+strDate+"&amp;generatedBy="+generatedBy+"&amp;mrnForBarCodeGeneration="+mrn;
+						  	var w = window.open(MyPage);
+						  	w.focus();
+	                        w.print();
+						}
+					}  
+				}
+				
+				
+				function printbillcumreceiptNew(status,iswhatsapp,patientId,reportUrl){
+					if(status == 'true'){
+						if(iswhatsapp==false){							
+						showPrintmodalpanel();
+							}
+							else{
+							
+							sendReportsInWhatsapp(reportUrl,patientId,'registration');  
+
+							}
+						
+					}
+		 		}
+				
+				function showPrintmodalpanel(){
+					
+					renderprintpaneldiv();
+					
+					javascript:Richfaces.showModalPanel('printInvoiceModal');
+				
+					javascript:Richfaces.hideModalPanel('printInvoiceModal');
+					
+				}
+		 		
+		 		function isLoaded()
+				{
+					var pdfFrame = window.frames["printInvoiceFrameId"];
+					pdfFrame.focus();
+					pdfFrame.print();
+				}
+				
+				function printDirectInvoice(original,duplicate){
+					if(original != ''){
+					 	var org = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos?type_=99&amp;filename="+original;
+					 	window.open(org,'mywindow1');     
+					}  
+					if(duplicate != ''){
+						 var dup = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos?type_=99&amp;filename="+duplicate;
+						 window.open(dup,'mywindow2');     
+				    }   
+				 }
+				function printpatientlabel(filename) {
+			        if (filename !== '') {
+		                var org = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos?type_=99&amp;filename=" + filename;
+		                window.open(org, 'mywindow1');
+			        }
+				}
+			</script>
+			
+			
+				<script type="text/javascript">			
+			
+				
+			</script>
+			
+			<script type="text/javascript" />
+				
+			 <script type="text/javascript"> 
+			 
+			    function showDropDownMenu(menuId) {
+			    	alert('hovered');
+			        var menu = document.getElementById(menuId);
+			        if (menu) {
+			            menu.style.display = 'block';
+			        }
+			    }
+				 function autoTab(index,max){				
+				 var c = jQuery('input[tabindex='+index+']').val();
+					var maxlength  = parseInt(max);
+				 if(c.length==maxlength){
+						var a = parseInt(index);
+						a = a+1;					
+						jQuery('input[tabindex='+a+']').focus();
+				 }	
+				}
+				 function hidePanel(){
+						var element = document.getElementById('panel-main');
+						var icon1 = document.getElementById('down');
+						var icon2 =document.getElementById('up')
+						if(element.style.display=='block'){
+							element.style.display='none';
+							icon1.style.display='block';
+							icon2.style.display='none';
+						}else if(element.style.display==""){
+							element.style.display='none';
+							icon1.style.display='block';
+							icon2.style.display='none';
+						}else if(element.style.display=="none"){
+							element.style.display='block';
+							icon2.style.display='block';
+							icon1.style.display='none';
+						}
+						else{
+							element.style.display='block';
+							icon2.style.display='block';
+							icon1.style.display='none';
+						}
+					}
+
+				function assignName(values) {
+					var selectedValue = document.getElementById('navigation:staffNamme').value;
+					var selectedValueArray = selectedValue.split(",");
+					document.getElementById('navigation:staffNamme').value=selectedValueArray[0];
+				}
+				document.addEventListener("DOMContentLoaded", function () {
+
+					function checkMandatoryFields() {
+						const fields = document.querySelectorAll(".mandatoryfeild");
+
+						fields.forEach(function(field) {
+							// HDSP guard: this runs synchronously inside A4J's own
+							// ajax-response DOM-patch pipeline (it fires synthetic
+							// input/change events while patching), not just on the
+							// setInterval poll. A thrown error here can abort the rest
+							// of A4J's response processing -- including invoking
+							// oncomplete on the button that triggered the request -- for
+							// *any* ajax action on this page, not just this field. The
+							// original code crashed whenever a SELECT had no option
+							// selected (selectedIndex -1, so options[-1] is undefined);
+							// wrapped defensively so one unfilled dropdown can never
+							// again silently break unrelated ajax completions elsewhere
+							// on the page.
+							try {
+								var value = "";
+								if (field.tagName === "SELECT") {
+									var selected = field.options[field.selectedIndex];
+									value = selected ? selected.value : "";
+								} else {
+									value = field.value;
+								}
+
+								if (value &amp;&amp; value.trim() !== "") {
+									field.classList.add("filled");
+								} else {
+									field.classList.remove("filled");
+								}
+							} catch (e) {
+								// Never let one bad field abort A4J's response handling.
+							}
+						});
+					}
+					document.addEventListener("input", checkMandatoryFields);
+					document.addEventListener("change", checkMandatoryFields);
+					setInterval(checkMandatoryFields, 300);
+				});
+			</script>
+			<div class="badge-icon" onclick="hidePanel();">
+			<span id="down" style="display:none;font-size:17px;margin-bottom:3%;color:white;" class="actionIconColor camLifeCustomFont lifeIcon-circle-down"/>
+			<span id="up" style="display:block;font-size:17px;margin-bottom:3%;color:white;" class="actionIconColor camLifeCustomFont lifeIcon-circle-up"/>
+			</div>
+			<div id="panel-main" class="badge-counter" style="display: none;">
+				<t:div id="queueCount" styleClass="badge-content">
+					<c:forEach items="#{patientRegistrationForm.count}" var="res">
+							<t:div style="display:flex;align-items:center;color:white;padding: 3px 0px 3px 0px;border-bottom: 1px solid white;width:20vw;">
+								<t:div style="width: 60%;padding-left: 10px;">
+									<h:outputText value="#{res[1]}"></h:outputText>
+								</t:div>
+								<t:div style="width: 40%;">
+									<h:outputText value="#{res[2]}"></h:outputText>
+									<h:outputText value="/"></h:outputText>
+									<h:outputText value="#{res[3]}"></h:outputText>
+								</t:div>
+							</t:div>
+						</c:forEach>
+				</t:div>
+			</div>
+			
+			<!-- ==================================================================
+			     HDSP Token Registration (Direct Entry): retires the iframe/
+			     panel "Registration Assistant" widget entirely: no badge, no
+			     docked panel, no cross-origin iframe, no reservation/heartbeat
+			     lifecycle. See docs/his-integration/DIRECT_TOKEN_MRN_MAPPING.md
+			     for the full design; POPUP_INTEGRATION_ARCHITECTURE.md (v1-v5)
+			     describes the retired design for historical reference only.
+
+			     What this does instead: the registrar types the token number
+			     the patient was already given (kiosk/counter) into the plain
+			     "HDSP Token No" field added next to UHID/MRN above. On blur,
+			     hdspValidateToken() calls HDSP read-only to confirm the token
+			     exists and isn't already registered, showing a small ✔/✘ next
+			     to the field, purely informational; it never blocks Save.
+			     When HIS's own Register button completes and assigns an MRN
+			     (exactly the same success-detection this integration has
+			     always used; see notifyHdspRegistrationSuccess below), this
+			     page calls POST /token/registration/map/patient directly, linking the typed
+			     token number to that MRN.
+
+			     Authentication: still zero Java backend code on the HIS side,
+			     exactly as every prior version of this integration. Rather
+			     than a reservation-capability token (which required the old
+			     panel to mint one per-reservation), this page bootstraps a
+			     WORKSTATION SESSION TOKEN from HDSP's existing, already-public
+			     /token/workstation/:workstationId endpoint (hdspBootstrapWorkstation
+			     below), the exact same mechanism the old popup/panel always
+			     used to reserve/heartbeat/map without a human HDSP login. That
+			     token authorizes exactly this workstation's own configured
+			     branch/location/counter and nothing else (see
+			     WorkstationController/PermissionsGuard on the backend). A
+			     permanent, general-purpose service-account credential is
+			     deliberately NOT embedded here for the same reason the old
+			     capability-token design avoided it: anything placed in this
+			     page's JS is readable via view-source/devtools by anyone on
+			     the LAN, so only a narrowly-scoped, workstation-bound token is
+			     ever exposed here, never a credential that could act as any
+			     other workstation or branch.
+
+			     Audit attribution: hdspReadHisUsername() (unchanged from the
+			     v5 panel design) reads the already-rendered HIS username out
+			     of the page header and sends it as registeredByHisUser on the
+			     map/patient call, so HDSP's audit trail
+			     (mapping_audit_log.actor, token_records.registration_user)
+			     records the real registrar, not just "workstation".
+			     ================================================================ -->
+			<a4j:outputPanel rendered="true">
+				<div id="hdsp-status-pill" class="hdsp-status-pill"></div>
+
+				<script type="text/javascript">
+				//<![CDATA[
+				(function () {
+					'use strict';
+
+					// ── Site configuration ────────────────────────────────────────────
+					// The ONLY per-site configuration this plugin needs: where HDSP
+					// lives. Not a credential -- just a URL, edited once per HIS
+					// installation.
+					var HDSP_BASE_URL = 'http://192.168.1.73:3000';
+
+					// One physical counter/browser = one workstation, configured once
+					// and reused forever (see WorkstationController on the backend).
+					// This key is not a credential -- it's an opaque, client-generated
+					// correlation id; the real configuration (branch/location/counter)
+					// lives server-side, keyed by this id.
+					var WORKSTATION_STORAGE_KEY = 'HDSP_WORKSTATION_ID';
+					var SESSION_RENEW_MARGIN_MS = 5 * 60 * 1000; // re-bootstrap 5 min before expiry
+
+					var hdspSessionToken   = null;
+					var hdspSessionExpiry  = 0;
+					var hdspBootstrapping  = null; // in-flight bootstrap promise, de-dupes concurrent callers
+
+					function hdspSetStatus(text, cssClass) {
+						var el = document.getElementById('hdsp-status-pill');
+						if (!el) return;
+						if (!text) {
+							el.className = 'hdsp-status-pill';
+							el.textContent = '';
+							return;
+						}
+						el.textContent = text;
+						el.className = 'hdsp-status-pill hdsp-status-visible' + (cssClass ? (' ' + cssClass) : '');
+					}
+
+					function hdspSetTokenStatus(text, cssClass) {
+						var el = document.getElementById('hdsp-token-status');
+						if (!el) return;
+						el.textContent = text || '';
+						el.className = 'hdsp-token-status' + (cssClass ? (' ' + cssClass) : '');
+					}
+
+					window.hdspClearTokenStatus = function () { hdspSetTokenStatus('', ''); };
+
+					// Reads the already-rendered logged-in HIS username straight out of
+					// the DOM -- no new hidden field, no managed bean, no REST endpoint
+					// added to HIS. Unchanged from the earlier panel design. Returning
+					// null (selector found nothing) is not an error -- the mapping call
+					// simply omits registeredByHisUser and HDSP falls back to
+					// attributing the workstation itself.
+					function hdspReadHisUsername() {
+						var el = document.querySelector('.Header-buttons .headerButtonColor')
+							|| document.querySelector('.headerButtonColor');
+						var text = el && (el.textContent || el.innerText || '').trim();
+						return text || null;
+					}
+
+					// workstation_id is a Postgres UUID column (see workstation-config.entity.ts)
+					// -- the generated id MUST be a valid RFC4122 UUID or every call to
+					// /token/workstation/:workstationId fails with "invalid input syntax
+					// for type uuid". crypto.randomUUID() only exists in secure contexts
+					// (https/localhost); this HIS page is served over plain http, so that
+					// API is undefined here and the fallback below is what actually runs.
+					// crypto.getRandomValues(), unlike randomUUID(), IS available on http.
+					function hdspGenerateUuidV4() {
+						if (window.crypto && window.crypto.getRandomValues) {
+							var buf = new Uint8Array(16);
+							window.crypto.getRandomValues(buf);
+							buf[6] = (buf[6] & 0x0f) | 0x40; // version 4
+							buf[8] = (buf[8] & 0x3f) | 0x80; // variant 10
+							var hex = [];
+							for (var i = 0; i < 16; i++) hex.push((buf[i] + 0x100).toString(16).slice(1));
+							return hex[0]+hex[1]+hex[2]+hex[3] + '-' + hex[4]+hex[5] + '-' + hex[6]+hex[7]
+								+ '-' + hex[8]+hex[9] + '-' + hex[10]+hex[11]+hex[12]+hex[13]+hex[14]+hex[15];
+						}
+						// Last-resort fallback (no crypto API at all) -- still valid UUID v4
+						// syntax, just Math.random()-seeded instead of CSPRNG-seeded. Fine
+						// here: this is a non-secret correlation key, not a credential.
+						return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+							var r = (Math.random() * 16) | 0;
+							var v = (c === 'x') ? r : ((r & 0x3) | 0x8);
+							return v.toString(16);
+						});
+					}
+
+					var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+					function hdspWorkstationId() {
+						var id = null;
+						try { id = window.localStorage.getItem(WORKSTATION_STORAGE_KEY); } catch (e) { /* storage disabled */ }
+						// Also regenerates if a previously-stored id isn't a valid UUID --
+						// covers browsers that already cached a bad non-UUID value from
+						// before this fix (e.g. "ws-<timestamp>-<random>").
+						if (!id || !UUID_RE.test(id)) {
+							id = hdspGenerateUuidV4();
+							try { window.localStorage.setItem(WORKSTATION_STORAGE_KEY, id); } catch (e) { /* storage disabled */ }
+						}
+						return id;
+					}
+
+					// ── Minimal inline setup picker (first use on a fresh browser only) ──
+					// No iframe, no separate route -- three plain <select> elements in a
+					// small fixed-position overlay, built with vanilla DOM calls against
+					// HDSP's existing, already-public options endpoints. Removed once the
+					// workstation is configured; never shown again on this browser.
+					function hdspShowSetupPicker(workstationId, onDone) {
+						var overlay = document.createElement('div');
+						overlay.style.cssText = 'position:fixed;bottom:4%;right:1%;width:280px;z-index:1002;'
+							+ 'background:#fff;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.3);'
+							+ 'padding:12px;font-size:12px;font-family:sans-serif;';
+						overlay.innerHTML = '<div style="font-weight:bold;margin-bottom:8px;">HDSP Token Setup (one-time)</div>'
+							+ '<div style="margin-bottom:6px;">Branch<br/><select id="hdspSetupBranch" style="width:100%;"></select></div>'
+							+ '<div style="margin-bottom:6px;">Department / Service Center<br/><select id="hdspSetupLocation" style="width:100%;" disabled="disabled"></select></div>'
+							+ '<div style="margin-bottom:8px;">Counter<br/><select id="hdspSetupCounter" style="width:100%;" disabled="disabled"></select></div>'
+							+ '<button id="hdspSetupSave" type="button" style="width:100%;" disabled="disabled">Save</button>'
+							+ '<div id="hdspSetupError" style="color:#991b1b;margin-top:6px;"></div>';
+						document.body.appendChild(overlay);
+
+						var branchSel = overlay.querySelector('#hdspSetupBranch');
+						var locSel    = overlay.querySelector('#hdspSetupLocation');
+						var counterSel= overlay.querySelector('#hdspSetupCounter');
+						var saveBtn   = overlay.querySelector('#hdspSetupSave');
+						var errEl     = overlay.querySelector('#hdspSetupError');
+
+						function fillSelect(sel, items, labelKey, valueKey) {
+							sel.innerHTML = '<option value="">-- select --</option>';
+							(items || []).forEach(function (it) {
+								var opt = document.createElement('option');
+								opt.value = it[valueKey];
+								opt.textContent = it[labelKey];
+								sel.appendChild(opt);
+							});
+						}
+
+						fetch(HDSP_BASE_URL + '/api/v1/token/workstation/options/branches')
+							.then(function (r) { return r.json(); })
+							.then(function (branches) { fillSelect(branchSel, branches, 'name', 'id'); })
+							.catch(function () { errEl.textContent = 'Could not reach HDSP.'; });
+
+						branchSel.addEventListener('change', function () {
+							locSel.innerHTML = '<option value="">-- select --</option>';
+							counterSel.innerHTML = '<option value="">-- select --</option>';
+							locSel.disabled = true; counterSel.disabled = true; saveBtn.disabled = true;
+							if (!branchSel.value) return;
+							fetch(HDSP_BASE_URL + '/api/v1/token/workstation/options/locations?branchId=' + encodeURIComponent(branchSel.value))
+								.then(function (r) { return r.json(); })
+								.then(function (locations) { fillSelect(locSel, locations, 'label', 'id'); locSel.disabled = false; })
+								.catch(function () { errEl.textContent = 'Could not load locations.'; });
+						});
+
+						locSel.addEventListener('change', function () {
+							counterSel.innerHTML = '<option value="">-- select --</option>';
+							counterSel.disabled = true; saveBtn.disabled = true;
+							if (!locSel.value) return;
+							fetch(HDSP_BASE_URL + '/api/v1/token/workstation/options/counters?locationId=' + encodeURIComponent(locSel.value))
+								.then(function (r) { return r.json(); })
+								.then(function (counters) { fillSelect(counterSel, counters, 'label', 'id'); counterSel.disabled = false; })
+								.catch(function () { errEl.textContent = 'Could not load counters.'; });
+						});
+
+						counterSel.addEventListener('change', function () {
+							saveBtn.disabled = !counterSel.value;
+						});
+
+						saveBtn.addEventListener('click', function () {
+							saveBtn.disabled = true;
+							fetch(HDSP_BASE_URL + '/api/v1/token/workstation/' + encodeURIComponent(workstationId), {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									branchId:   branchSel.value,
+									locationId: locSel.value,
+									counterId:  counterSel.value,
+									configuredByLabel: hdspReadHisUsername() || 'walk-up'
+								})
+							}).then(function (res) {
+								if (!res.ok) throw new Error('save failed');
+								document.body.removeChild(overlay);
+								onDone();
+							}).catch(function () {
+								errEl.textContent = 'Could not save configuration -- try again.';
+								saveBtn.disabled = false;
+							});
+						});
+					}
+
+					// Resolves to a valid session token, bootstrapping (and, on a fresh
+					// workstation, showing the one-time setup picker) as needed.
+					// De-dupes concurrent callers into a single in-flight request.
+					function hdspEnsureSession() {
+						if (hdspSessionToken && Date.now() < hdspSessionExpiry - SESSION_RENEW_MARGIN_MS) {
+							return Promise.resolve(hdspSessionToken);
+						}
+						if (hdspBootstrapping) return hdspBootstrapping;
+
+						var workstationId = hdspWorkstationId();
+						hdspBootstrapping = fetch(HDSP_BASE_URL + '/api/v1/token/workstation/' + encodeURIComponent(workstationId))
+							.then(function (r) { return r.json(); })
+							.then(function (data) {
+								if (data && data.configured === false) {
+									return new Promise(function (resolve, reject) {
+										hdspShowSetupPicker(workstationId, function () {
+											hdspEnsureSession().then(resolve).catch(reject);
+										});
+									});
+								}
+								if (!data || !data.sessionToken) throw new Error('no session token in bootstrap response');
+								hdspSessionToken  = data.sessionToken;
+								// 12h workstation session TTL (see WorkstationService) -- store
+								// an absolute expiry so hdspEnsureSession can proactively renew.
+								hdspSessionExpiry = Date.now() + 12 * 60 * 60 * 1000;
+								return hdspSessionToken;
+							})
+							['finally'](function () { hdspBootstrapping = null; });
+						return hdspBootstrapping;
+					}
+
+					// Best-effort, on-blur only -- never blocks Save. A typo here is
+					// caught before the registrar finishes the rest of the form, but if
+					// this check fails for any reason (HDSP briefly unreachable, etc.)
+					// registration proceeds exactly as it always has; only the final
+					// map/patient call after a successful Save actually matters.
+					window.hdspValidateToken = function () {
+						var field = document.getElementById('hdspTokenNumber');
+						var tokenNumber = field && field.value.trim();
+						if (!tokenNumber) { hdspSetTokenStatus('', ''); return; }
+
+						hdspSetTokenStatus('checking...', 'hdsp-token-checking');
+						hdspEnsureSession().then(function (token) {
+							return fetch(HDSP_BASE_URL + '/api/v1/token/registration/' + encodeURIComponent(tokenNumber) + '/state', {
+								headers: { 'Authorization': 'Bearer ' + token }
+							});
+						}).then(function (res) {
+							if (res.status === 404) { hdspSetTokenStatus('✘ Token not found', 'hdsp-token-bad'); return; }
+							if (!res.ok) { hdspSetTokenStatus('', ''); return; }
+							return res.json().then(function (data) {
+								if (data.mapping) {
+									hdspSetTokenStatus('✘ Already registered', 'hdsp-token-bad');
+								} else {
+									hdspSetTokenStatus('✔ Token found', 'hdsp-token-ok');
+								}
+							});
+						}).catch(function () { hdspSetTokenStatus('', ''); });
+					};
+
+					// ── Called from the existing Register buttons' oncomplete callbacks ──
+					// (register_...Btn and register_...BtnWhatsapp further down this
+					// page -- unchanged wiring, same function name/signature as every
+					// earlier version of this integration, so those oncomplete
+					// attributes never needed to be touched). Success detection is
+					// unchanged: the existing mrnoId input's value, or the existing
+					// queueno display's text, both already re-rendered by the Register
+					// buttons' own reRender list. On a validation failure neither
+					// element changes, so this correctly does nothing and makes no HDSP
+					// call. Patient ID and Visit ID arrive as plain EL arguments, same
+					// bare-property-reference pattern used elsewhere on this page.
+					// a4j's oncomplete can fire the instant the Ajax response arrives,
+					// which is not guaranteed to be after it finishes patching the
+					// reRendered mrnoId/queueno nodes into the live DOM (RichFaces/a4j
+					// applies DOM updates as a separate step after the response
+					// callback chain starts). Reading those nodes synchronously here
+					// can see stale (empty) values even though the save genuinely
+					// succeeded a moment later -- so poll briefly instead of checking
+					// once. 10 x 150ms = 1.5s ceiling, well under how long a registrar
+					// takes to notice nothing happened and re-click.
+					window.notifyHdspRegistrationSuccess = function (patientId, mrnArg, visitId) {
+						var field = document.getElementById('hdspTokenNumber');
+						var tokenNumber = field && field.value.trim();
+						if (!tokenNumber) {
+							// No HDSP token was ever entered for this registration --
+							// nothing to map. Registration succeeds identically whether
+							// or not a receptionist ever fills in the HDSP Token No field.
+							return;
+						}
+
+						var attempts = 0;
+						var maxAttempts = 10;
+
+						function checkAndProceed() {
+							var mrnField  = document.getElementById('navigation:mrnoId');
+							var mrnDom    = mrnField ? (mrnField.value || '').trim() : '';
+							var queueEl   = document.getElementById('navigation:queueno');
+							var queueText = queueEl ? (queueEl.textContent || queueEl.innerText || '').trim() : '';
+
+							var succeeded = (mrnDom !== '') || (queueText !== '');
+							if (!succeeded) {
+								attempts += 1;
+								if (attempts < maxAttempts) {
+									setTimeout(checkAndProceed, 150);
+								}
+								// Ran out of retries -- either validation genuinely failed
+								// or the save has not completed yet. HIS's own error panel
+								// (id="error") is left untouched; the typed token number
+								// stays in the field so the registrar can simply fix the
+								// form and Save again.
+								return;
+							}
+
+							proceedWithMapping(mrnDom);
+						}
+
+						function proceedWithMapping(mrnDom) {
+						var mrn = mrnDom || mrnArg || '';
+
+						hdspEnsureSession().then(function (token) {
+							return fetch(HDSP_BASE_URL + '/api/v1/token/registration/map/patient', {
+								method:  'POST',
+								headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+								body: JSON.stringify({
+									tokenNumber:        tokenNumber,
+									hisPatientId:       patientId || '',
+									mrn:                mrn,
+									visitId:            visitId || '',
+									registeredByHisUser: hdspReadHisUsername() || undefined
+								})
+							});
+						}).then(function (res) {
+							if (res.ok) {
+								hdspSetStatus('Token ' + tokenNumber + ' linked successfully.', 'hdsp-status-success');
+								field.value = '';
+								hdspSetTokenStatus('', '');
+								setTimeout(function () { hdspSetStatus(''); }, 4000);
+							} else if (res.status === 409) {
+								hdspSetStatus('Token ' + tokenNumber + ' was already registered to another patient -- please use a different token.', 'hdsp-status-error');
+							} else {
+								hdspSetStatus('Could not link HDSP token ' + tokenNumber + ' automatically -- contact support if this repeats.', 'hdsp-status-error');
+							}
+						}).catch(function () {
+							hdspSetStatus('Could not reach HDSP to link token ' + tokenNumber + '. Please note it down for manual follow-up.', 'hdsp-status-error');
+						});
+						}
+
+						checkAndProceed();
+					};
+
+					// Bootstrap the workstation session as soon as the page loads (not
+					// lazily on first field interaction) so hdspValidateToken's first
+					// on-blur check doesn't have to wait on it, and so the one-time
+					// setup picker (if needed) appears immediately rather than
+					// mid-registration.
+					hdspEnsureSession()['catch'](function () { /* surfaced again on first real use */ });
+				})();
+				//]]>
+				</script>
+			</a4j:outputPanel>
+
+			<a4j:outputPanel rendered="#{patientRegistrationForm.registration.registrationCategory.lookupId ne 13 and !patientRegistrationForm.registrationPageNav  and patientRegistrationForm.regtypeCheck ne 16}" >
+			<div>
+				<div class="col-md-2 col-lg-2 bayinactive " style="display:#{patientRegistrationForm.fromHealthPackage eq false ? 'block':'none'}"> 
+				<a4j:commandLink immediate="true" action="#{patientRegistrationForm.createRegistration}" id="regtabLink">
+					<div style="width: 158px;    display: inline-flex;">
+<!-- 						<div class=" " style="color: #fff;    margin-top: 5px; ">Register</div> -->
+<!-- 						<span class="dwbClinicalOrderIcon camLifeCustomFont lifeIcon-new_patient" style="margin-left: 7px; font-size: 23px;"> </span> -->
+	                   <table style="margin-top:5px;"><tr><td><img src="css/#{preferencesBean.prefernces.theme.theme}/images\cpoeInternalIcons\todays register.png"
+										style="width: 25px;margin-left: -7px;margin-top: -10px;"/> 
+										</td><td><p class="leftLinksP" style="color:#fff;">
+										Registration(F2)</p> </td></tr></table>
+	                   </div>
+	                   <f:setPropertyActionListener target="#{patientRegistrationForm.reload}" value="#{false}"/>
+	                   <f:param name="registrationCategory" value="12" />
+						<f:param name="regisType" value="1" />
+						
+					</a4j:commandLink>
+				</div>
+				<div class="" onmouseout="jQueryHide('#daycareMenu')"  onmouseover="jQueryShow('#daycareMenu')">
+ 				<div class="col-md-2 col-lg-2 bayactive " style="display:#{patientRegistrationForm.fromHealthPackage eq false ? 'block':'none'};width:14.2%;">  
+ 					<a4j:commandLink action="createencounter" > 
+ 					<div style="width: 158px;    display: inline-flex;"> 
+<!--  						<div class=" " style="color: #fff;    margin-top: 5px; ">Walkin</div>  -->
+<!-- 						<span class="dwbClinicalOrderIcon camLifeCustomFont lifeIcon-EncounterSummary" style="margin-left: 7px; font-size: 23px;"> </span>  -->
+	                 <table style="margin-top:5px;"><tr><td><img src="css/#{preferencesBean.prefernces.theme.theme}/images\cpoeInternalIcons\direct.png"
+										style="width: 25px;margin-left: -7px;margin-top: -10px;"/> 
+										</td><td><p class="leftLinksP" style="color:#fff;">
+										Walk-in(F3)</p> </td></tr></table>
+						                <f:setPropertyActionListener target="#{opdBrowserForm.isWalkin}" value="#{true}"/>
+						                <f:setPropertyActionListener target="#{patientControlForm.patMrNo}" value=""/>
+						                <f:setPropertyActionListener target="#{patientControlForm.patientImage}" 
+						                  value="admissionreq.jpg"/>
+ 	                 </div> 
+					</a4j:commandLink> 
+					<ul onmouseout="jQueryHide('#daycareMenu')" onmouseover="jQueryShow('#daycareMenu')" class="modalulMenu captionUl" id="daycareMenu" style="margin-top:-25px;">
+							<life:security id="daycareMenuasa" var="isValid">
+								<t:htmlTag value="li">
+							<a4j:commandLink 
+							action="createencounter">
+							<div class="absoluteposition modalulMenuli" >Walk-in(F3)</div>
+							<f:setPropertyActionListener target="#{opdBrowserForm.isWalkin}" value="#{true}"/>
+						                <f:setPropertyActionListener target="#{patientControlForm.patMrNo}" value=""/>
+						                <f:setPropertyActionListener target="#{patientControlForm.patientImage}" 
+						                  value="admissionreq.jpg"/>
+							</a4j:commandLink>
+								</t:htmlTag>
+							</life:security>
+							<life:security id="defaultconfigurationMenuas" var="isValid">
+								<t:htmlTag value="li">
+								<a4j:commandLink 
+							action="createmultipleencounter" reRender="doctorConsultationDivId,opdBrowserForm,opdClickedimages,bayManagementicons" >
+							<div class="absoluteposition modalulMenuli" >Multiple Encounter(F9)</div>
+							 <f:setPropertyActionListener target="#{patientControlForm.patMrNo}" value=""/>
+							 <f:setPropertyActionListener target="#{multipleEncounterForm.showBackBtn}" value="#{false}"/>
+							</a4j:commandLink>
+								</t:htmlTag>
+							</life:security>
+					 	</ul>
+ 				</div> 
+ 				</div>
+ 				<div class="col-md-2 col-lg-2 bayactive " style="display:#{patientRegistrationForm.fromHealthPackage eq false ? 'block':'none'};width:14.2%;"> 
+				<a4j:commandLink action="appointmentscheduler" >
+						<f:param name="orderstatusId" value="298" />
+						<div style="width: 158px;    display: inline-flex;">
+<!-- 						<div class=" " style="color: #fff;    margin-top: 5px; ">Appointments</div> -->
+<!-- 						<span class="dwbClinicalOrderIcon camLifeCustomFont lifeIcon-appointment" style="margin-left: 7px; font-size: 23px;"> </span> -->
+	                   <table style="margin-top:5px;"><tr><td><img src="css/#{preferencesBean.prefernces.theme.theme}/images\cpoeInternalIcons\appointment.png"
+										style="width: 25px;margin-left: -7px;margin-top: -10px;"/> 
+										</td><td><p class="leftLinksP" style="color:#fff;">
+										Appointments(F4)</p> </td></tr></table>
+	                   </div>
+       		    </a4j:commandLink>
+				</div>
+				<div class="col-md-2 col-lg-2 bayactive " style="display:#{patientRegistrationForm.fromHealthPackage eq false ? 'block':'none'};width:14.2%;"> 
+				<a4j:commandLink action="goToOPDBrowser" >
+						<div style="width: 158px;    display: inline-flex;">
+						<span class="dwbClinicalOrderIcon camLifeCustomFont lifeIcon-reply" style="margin-left: -7px; font-size: 23px;"> </span>
+	                   <div class=" " style="color: #fff;    margin-top: 5px; ">View Patients(F6)</div>
+	                   </div>
+       		    </a4j:commandLink>
+				</div>
+				<div class="col-md-2 col-lg-2 bayactive " style="display:#{patientRegistrationForm.fromHealthPackage eq false ? 'block':'none'};width:14.2%;"> 
+				<a4j:commandLink action="#{opdBrowserForm.goToReferalPage}" >
+						<f:setPropertyActionListener target="#{opdBrowserForm.selectedTab}" value="notcheckedtab"/>
+						<f:setPropertyActionListener target="#{opdBrowserForm.notCheckedInSelectTab}" value="referraltab"/>
+						<div style="width: 158px;    display: inline-flex;">
+<!-- 						<div class=" " style="color: #fff;    margin-top: 5px; ">Referral Patients</div> -->
+<!-- 						<span class="dwbClinicalOrderIcon camLifeCustomFont lifeIcon-redo2" style="margin-left: 7px; font-size: 23px;"> </span> -->
+	                   <table style="margin-top:5px;"><tr><td><img src="css/#{preferencesBean.prefernces.theme.theme}/images\cpoeInternalIcons\referral.png"
+										style="width: 25px;margin-left: -7px;margin-top: -10px;"/> 
+										</td><td><p class="leftLinksP" style="color:#fff;">
+										Referral Patients(F7)</p> </td></tr></table>
+	                   </div>
+       		    </a4j:commandLink>
+				</div>
+				<div class="col-md-1 col-lg-1 bayactive " style="display:#{patientRegistrationForm.fromHealthPackage eq false ? 'block':'none'};width:14.2%;"> 
+				<a4j:commandLink action="#{invoiceBillingForm.navigatefromDirectInvoice}" >
+						<div style="width: 158px;    display: inline-flex;">
+						<span class="dwbClinicalOrderIcon camLifeCustomFont lifeIcon-billing" style="margin-left: -7px; font-size: 23px;"> </span>
+	                   <div class=" " style="color: #fff;    margin-top: 5px; ">Billing(F8)</div>
+	                   </div>
+	                   <f:setPropertyActionListener target="#{invoiceBillingForm.billingNav}" value="1"/>
+	                   <a4j:actionparam name="isdirect"
+											assignTo="#{invoiceBillingForm.isDirectInvoice}"
+											value="#{true}" />
+       		    </a4j:commandLink>
+				</div>
+				<div  class="col-md-1 col-lg-1 bayactive " style="display:#{patientRegistrationForm.fromHealthPackage eq false ? 'block':'none'};width:12.2%;"> 
+				<a4j:commandLink action="#{servicecentertokensystemform.navigateToken}" >
+						<div style="width: 158px;    display: inline-flex;">
+						<span class="dwbClinicalOrderIcon camLifeCustomFont lifeIcon-volume-medium" style="margin-left: -7px; font-size: 23px;"> </span>
+	                   <div class=" " style="color: #fff;    margin-top: 5px; ">Token</div>
+	                   </div>
+	                   <f:setPropertyActionListener target="#{servicecentertokensystemform.fromRegistration}" value="#{true}"/>
+	                   <f:setPropertyActionListener target="#{servicecentertokensystemform.counterType}" value="Billing" />
+       		    </a4j:commandLink>
+				</div>
+</div> 
+				</a4j:outputPanel>
+
+		<a4j:outputPanel id="registrationOutputPanel">
+		<t:div id="error">
+		<life:messages forId="patientRegistrationErrors"
+			showErrorHeader="true" errorPanelId="itemErrorPanel"
+			styleClassName="messagePanelInline" />
+		</t:div>
+			<div class="panel" style="border-color: silver;">
+				<t:div id="regHeader" style="width: 100%;height: 50px;display: flex;justify-content: flex-start;align-items: center;margin-top: 57px;">
+					<t:div style="width: 130%;height:100%;display: flex;justify-content: flex-start;align-items: center;padding-left: 20px;">
+						<h:panelGrid columns="13" cellspacing="10" width="100%">
+							<h:column>
+								<h:outputText value="#{common['p.uniqueId']}" />
+							</h:column>
+							<h:column>
+								<h:inputText readonly="true" id="mrnoId"  class="form-control" style="width:70%"
+												value="#{patientRegistrationForm.patient.MRNO}"
+												rendered="#{!patientRegistrationForm.isDirectRenew}"/>
+									<a4j:region>
+										<h:inputText id="patientMrNo" readonly="true"
+											onkeypress="if (event.keyCode == 13) {loadPatientDetails();return false;}"
+											value="#{patientRegistrationForm.patient.MRNO}"
+											rendered="#{patientRegistrationForm.isDirectRenew}">
+										</h:inputText>
+										<h:graphicImage width="18" height="18" url="images/search.png"
+											styleClass="graphicImgStyle"
+											rendered="#{patientRegistrationForm.isDirectRenew}"
+											onclick="assignSearchDefaultValues()" />
+										<a4j:jsFunction name="assignSearchDefaultValues"
+											rendered="#{patientRegistrationForm.isDirectRenew}"
+											oncomplete="javascript:Richfaces.showModalPanel('modalFormResultPatientSearch')">
+											<a4j:actionparam name="backingBeanName"
+												assignTo="#{patientControlForm.backingBeanName}"
+												value="patientRegistrationForm" />
+											<a4j:actionparam name="onPatientSelectCallBack"
+												assignTo="#{patientControlForm.onPatientSelectCallBack}"
+												value="loadPatientDetails" />
+										</a4j:jsFunction>
+										<a4j:jsFunction name="loadPatientDetails" focus="patientMrNo"
+											rendered="#{patientRegistrationForm.isDirectRenew}"
+											action="#{patientRegistrationForm.fetchRenewPatientDetails}"
+											reRender="registrationOutputPanel" />
+								</a4j:region>
+								<t:div id="queueno" styleClass="themeBg"  style="#{patientRegistrationForm.registration.encounter.encounterId ne null ? 'block;width: 34px' :'none;width:0px'};margin:5px;">
+									<h:outputText value="#{patientRegistrationForm.registration.encounter.queueNo}"  style="padding: 3px 0px;text-align: center;font-size: 17px;color: white;"
+										rendered="#{patientRegistrationForm.registration.encounter.encounterId ne null}"/>
+								</t:div>
+								<!-- ============================================================
+								     HDSP Token Number: plain text field, no iframe/panel.
+								     Deliberately placed INSIDE this existing h:column (the
+								     UHID/MRN cell) rather than as new h:column siblings: this
+								     h:panelGrid uses a fixed columns="13" that wraps into a
+								     new row every 13 children, and this form has many rows
+								     below. Adding new h:column entries here shifts every
+								     later cell's row/column position and breaks every row
+								     after this one (this happened once already). Living
+								     inside an existing cell costs nothing structurally:
+								     the child/row count is unchanged, so nothing below is
+								     affected; only this one cell renders slightly wider.
+								     See docs/his-integration/DIRECT_TOKEN_MRN_MAPPING.md for
+								     the full design. Pure HTML input (not h:inputText)
+								     deliberately: this field is never read or written by the
+								     JSF backing bean, only by the JavaScript block below, so
+								     it does not need to be a managed JSF component.
+								     ============================================================ -->
+								<!-- Compact block-level second line under the mrnoId input,
+								     not inline: this h:column's rendered width is shared
+								     across every row that uses this same grid column
+								     position, so keeping this element's own intrinsic width
+								     small (short label, narrow input, small font) avoids
+								     forcing that shared column wider anywhere else in the
+								     form. -->
+								<div style="display:block;margin-top:1px;white-space:nowrap;line-height:1;">
+									<label for="hdspTokenNumber" style="font-weight:normal;font-size:10px;color:#555;margin-right:3px;">Token No</label>
+									<input type="text" id="hdspTokenNumber" style="width:70px;display:inline-block;font-size:10px;padding:0px 3px;height:16px;line-height:16px;box-sizing:content-box;border:1px solid #ccc;border-radius:3px;"
+										maxlength="20" autocomplete="off"
+										onblur="if(window.hdspValidateToken)hdspValidateToken();"
+										onfocus="if(window.hdspClearTokenStatus)hdspClearTokenStatus();" />
+									<span id="hdsp-token-status" class="hdsp-token-status" style="font-size:10px;"></span>
+								</div>
+							</h:column>
+							<h:column>
+								<h:outputText value="AADHAAR NO" />
+							</h:column>
+							<h:column>
+								<h:inputText id="aadhaarNo" value="#{patientRegistrationForm.patient.aadhaarNo}"  style="width:70%"
+									  styleClass="form-control" minlength="14" maxlength="14" onkeyup="aadhaarNoFormatting()">
+									  <a4j:support event="onchange"></a4j:support>
+									<!-- <f:validateLength minimum="3" maximum="3" /> -->
+								</h:inputText>
+								<a4j:region>
+									<a4j:outputPanel id="ssn" ajaxRendered="true" rendered="false">
+									<ul class="list-inline">
+									<li style="width: 33%;padding: 0px;">
+										<h:inputText id="ssnNo1" value="#{patientRegistrationForm.ssnNo1}" 
+											  styleClass="form-control" minlength="3" maxlength="3"   rendered="false">
+											<!-- <f:validateLength minimum="3" maximum="3" /> -->
+										</h:inputText>
+									<!-- <h:message for="ssnNo1" style="color:red" /> -->
+									</li>
+									 <li style="width: 33%;padding: 0px;margin-left: -4px;">
+										<h:inputText id="ssnNo2" value="#{patientRegistrationForm.ssnNo2}" 
+											 styleClass="form-control" minlength="4" maxlength="4"  rendered="false">
+											<!-- <f:validateLength minimum="4" maximum="4" /> -->
+										</h:inputText>
+									<!-- <h:message for="ssnNo2" style="color:red" />  -->
+									</li>
+									 <li style="width: 33%;padding: 0px;margin-left: -4px;">
+										<h:inputText id="ssnNo3" value="#{patientRegistrationForm.ssnNo3}"
+											styleClass="form-control" minlength="7" maxlength="7"  rendered="false">
+											<!-- <f:validateLength minimum="7" maximum="7" />  -->
+										 </h:inputText>
+									<!-- <h:message for="ssnNo3" style="color:red" /> -->
+									 </li>
+									
+									 </ul>
+									 </a4j:outputPanel>
+								</a4j:region>
+							</h:column>
+							<h:column>
+	            				<t:div style="width: 100%;display: flex;">
+		            				<h:selectBooleanCheckbox id="priorityName" position="fixed"  style="margin-right: 5px;"
+										value="#{patientRegistrationForm.patient.priorityName}">
+										<a4j:support event="onchange" ajaxSingle="true" />
+									</h:selectBooleanCheckbox>
+									<h:outputLabel value="#{op.confidential}"/>
+								</t:div>
+	            			</h:column>
+	            			<h:column>
+	            				<t:div style="width: 100%;display: flex;">
+		            				<h:selectBooleanCheckbox id="insurance" position="fixed" style="margin-right: 5px;" 
+										value="#{patientRegistrationForm.defaultplan}">
+										<a4j:support event="onchange" ajaxSingle="true" />
+									</h:selectBooleanCheckbox>
+									<h:outputLabel value="Is Insured"/>
+								</t:div>
+							</h:column>
+							<h:column>
+								<a4j:region>
+									<rich:dropDownMenu id="newDropDownId" style="background-color: #e0d8e3; color:black !important; padding:4px 4px 4px 12px; border-radius: 3px;" value="Reg. Type" >
+										<c:forEach var="newRegistrationTypes" items="#{patientRegistrationForm.newRegistrationTypes}">
+											<rich:menuItem submitMode="server"
+												value="#{newRegistrationTypes[1]}"
+												action="#{patientRegistrationForm.loadPatientRegistration}"
+												oncomplete="collapseSiderBarOnLoad();"
+												reRender="registrationOutputPanel,regButtons,fm,patImage,regTypeId">
+												<f:param name="registrationCategory"
+													value="#{newRegistrationTypes[2]}" />
+												<f:param name="regisType" value="#{newRegistrationTypes[0]}" />
+												<f:param name="isregsubinLink" value="YES" />
+												<f:param name="registrationType" value="#{newRegistrationTypes[1]}" />
+												<a4j:actionparam name="staffno" value ="#{newRegistrationTypes[0]}" assignTo ="#{patientRegistrationForm.staf}"/>
+												<a4j:actionparam name="reload" value ="#{false}" assignTo ="#{patientRegistrationForm.reload}"/>
+												<a4j:actionparam name="onClickRegType" value ="#{true}" assignTo ="#{patientRegistrationForm.onClickRegType}"/>
+											</rich:menuItem>
+										</c:forEach>
+									</rich:dropDownMenu>
+								</a4j:region>
+							</h:column>
+							<h:column>
+								<a4j:region>
+									<h:inputText id="regTypeId" style="background-color:#eeeeee" readonly="true" value="#{patientRegistrationForm.registrationType}"></h:inputText>
+								</a4j:region>
+							</h:column>
+							<h:column>
+								 <h:outputText value="#{msgs['reg.patientType']}"/>
+							</h:column>
+							<h:column>
+								<a4j:region>
+									<t:selectOneMenu style="width:55%;"
+										value="#{patientRegistrationForm.patient.patregtype}"
+										id="patient_Type">
+										<f:selectItems
+											value="#{patientRegistrationForm.registration_Type}" />
+										<a4j:support event="onchange" reRender="patient_Type" />
+									</t:selectOneMenu>
+								</a4j:region>
+							</h:column>
+							<h:column>
+								 <h:outputText value="Patient Registration Type"/>
+							</h:column>
+							<h:column>
+								<a4j:region>
+								<t:selectOneMenu styleClass="form-control selectbox"  style="padding-top: 1.3%;"
+									value="#{patientRegistrationForm.patient.patRegTypeId}"  disabled="#{!patientRegistrationForm.isModify}"
+									id="patientRegTypeid">
+									<f:converter converterId="javax.faces.Long" />
+									<f:selectItems value="#{patientRegistrationForm.patRegistrationTypeList}" />
+										<a4j:support event="onchange" action="#{patientRegistrationForm.onchangeNewPatientRegType}" 
+											reRender="patientRegTypeid,appointmentTypeId,encounterMessagesAndErrors,serviceLevelDetailsId,paymentDetailsPanelId,patient_Type"  />	
+								</t:selectOneMenu>
+								<life:message forId="patientRegTypeid" />
+							</a4j:region>
+							</h:column>
+							<h:column style="width:70%;" rendered="#{!(patientRegistrationForm.revisionList eq null)}">
+								<rich:dropDownMenu id="historyId"
+									value="#{op['patient.history']}"
+									styleClass="alignRight"  style="color:#fff !important;">
+									<c:forEach var="revList"
+										items="#{patientRegistrationForm.revisionList}">
+										<rich:menuItem submitMode="ajax"
+											value="#{revList}"
+											action="#{patientRegistrationForm.loadPatientRevision}"
+											oncomplete="collapseSiderBarOnLoad();"
+											reRender="registrationOutputPanel">
+											<f:param name="revisionNumber" value="#{revList}" />
+										</rich:menuItem>
+									</c:forEach>
+								</rich:dropDownMenu>
+							</h:column>
+							<h:column rendered="#{patientRegistrationForm.temporaryCredit}">
+								<h:selectBooleanCheckbox id="isbedCreditRequired" styleClass="is-appointment" 
+									value="#{patientRegistrationForm.registration.isBedCreditEnable}">
+									<a4j:support event="onchange" reRender="isbedCreditRequired" ajaxSingle="true" />
+								</h:selectBooleanCheckbox>
+								<label style="font-weight:normal;">Temporary Credit</label>
+							</h:column>
+							<h:column rendered="#{patientRegistrationForm.isConvert and (patientRegistrationForm.patient.preRegisterId eq null) and patientRegistrationForm.registration.hospitalRegType.registration_Type.systemCofigurated}">
+								<h:commandLink style="text-decoration:underline;font-weight:normal;color:#fff;" 
+									value="#{msgs['reg.new']}" reRender="registrationOutputPanel,fm"
+									action="#{patientRegistrationForm.createRegistrationConversion}"
+									ajaxSingle="true" oncomplete="collapseSiderBarOnLoad();">
+									<f:param name="patCat"
+										value="#{patientRegistrationForm.registration.registrationCategory.lookupId}" />
+									<f:param name="regisType"
+										value="#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationTypeId}" />
+									<a4j:actionparam name="conValue"
+										assignTo="#{patientRegistrationForm.isConvert}"
+										value="#{patientRegistrationForm.isConvert}" />
+								</h:commandLink>
+							</h:column>
+							<h:column rendered="#{patientRegistrationForm.fromHealthPackage}">
+								<a4j:commandButton style="font-size: 16px; color:white" action="#{opdBrowserForm.encounterCleatAndReload}" 
+									value="Walkin" >
+									<a4j:actionparam name="conValue"
+											assignTo="#{opdBrowserForm.healthPackageWakin_flag}"
+											value="#{patientRegistrationForm.fromHealthPackage}" />
+											  <f:setPropertyActionListener target="#{opdBrowserForm.isWalkin}" value="#{true}"/>
+									                 <f:setPropertyActionListener target="#{patientControlForm.patMrNo}" value=""/>
+									                  <f:setPropertyActionListener target="#{patientControlForm.patientImage}" value="admissionreq.jpg"/>
+									                  <f:setPropertyActionListener target="#{opdBrowserForm.opdSearchCriteria.patientMRNo}" value=""/>
+								                  <f:setPropertyActionListener target="#{opdBrowserForm.opdSearchCriteria.firstName}" value=""/>
+								                  <f:setPropertyActionListener target="#{opdBrowserForm.patientEncounter.patient.patientId}" value=""/>
+								                  <f:setPropertyActionListener target="#{patientControlForm.includePatSearch}" value="#{true}"/>
+									</a4j:commandButton>
+							</h:column>
+						</h:panelGrid>
+					</t:div>
+					<t:div style="width: 10%;display: flex;align-items: center;justify-content: flex-end;height:100%;padding-right: 10px;">
+						<h:outputLink style="font-weight:normal;color:#fff;" 
+							id="registrationList" rendered="#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationTypeId eq 1}"
+							value="pages/patient/registration/patientregistrations.jsf">
+							<div style="display:flex;width: fit-content;padding: 5px 15px 5px 15px;;background-color: #c53333;color: white !important;border-radius: 15px;">
+								Patient List
+							</div>
+						</h:outputLink>
+						<h:outputLink style="text-decoration:underline;font-weight:normal;color:#fff;" 
+							id="emrgncyregistrationList" rendered="#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationTypeId eq 2}"
+							value="pages/patient/registration/patientregistrations.jsf">
+							<div style="display:flex;width: fit-content;padding: 5px 15px 5px 15px;background-color: #ff7171;color: white !important;border-radius: 15px;">
+								Patient List
+							</div>
+						</h:outputLink>
+					</t:div>
+				</t:div>
+				<t:div style="width: 100%;height: max-content;padding-left: 10px;padding-right: 10px;">
+					<h:panelGrid columns="10" cellspacing="10" cellpadding="5" width="100%" id="patHead">
+						
+						
+						<h:column rendered="false">
+						 	<h:outputText value="#{msgs['reg.regDate']}"/>
+							<h:outputText value="*"	rendered="#{patientRegistrationForm.registration.registrationId eq null 
+													and patientRegistrationForm.isConvert}"	styleClass="textColorRed" />
+						</h:column>
+						<h:column  rendered="false">
+							<a4j:region>
+								<rich:calendar required="true" id="regisDate"
+									enableManualInput="true" styleClass="form-control" 
+									value="#{patientRegistrationForm.registration.registrationDate}"
+									rendered="#{patientRegistrationForm.registration.registrationId eq null 
+									and patientRegistrationForm.isConvert}">
+									<a4j:support event="onchanged" reRender="regisDate" />
+								</rich:calendar>
+								<life:message forId="regisDate" />
+							</a4j:region>
+							<div >:
+							<h:outputText styleClass="outputTextStyle"
+								rendered="#{patientRegistrationForm.isConvert ne 'true'}"
+								value="#{patientRegistrationForm.registration.registrationDate}">
+								<f:convertDateTime pattern="#{preferencesBean.datePattern}"
+									timeZone="#{preferencesBean.timeZone}" />
+							</h:outputText>
+							</div>
+						</h:column>
+						
+					</h:panelGrid>
+				</t:div>
+				<div style="border-radius: 5px;border:none;">
+		   <t:div id="registrationPageDivs">
+		   <div class="container" style="display:flex;">
+		   	<div style="width:65%;">
+				<ui:include src="patientData.xhtml"/>
+				<ui:include src="regContactDetails.xhtml"/>
+			</div>	
+			<div style="width:35%;">
+				<div style="height: 5px"/>
+					<rich:simpleTogglePanel switchType="client" id="appTab"
+							rendered="#{patientRegistrationForm.registration.hospitalRegType.appointmentTab 
+							and patientRegistrationForm.registration.registrationId eq null}"
+							headerClass="simpleTogglePanelHeader"
+							bodyClass="simpleTogglePanelBody"
+							label="Encounter"
+							opened="#{patientRegistrationForm.registration.hospitalRegType.appointmentExpand}">
+					<ui:include src="regAppointmentDetails.xhtml"/>
+					</rich:simpleTogglePanel>
+				</div>	
+			</div>			
+							<t:div id="mlc">
+						<rich:simpleTogglePanel switchType="client"
+								rendered="#{patientRegistrationForm.registration.patientType.id eq 77270}"
+								headerClass="simpleTogglePanelHeader"
+								bodyClass="simpleTogglePanelBody"
+								label="#{msgs.emergency}"
+								opened="true">
+						<t:div id="mLcGrid">
+						 <h:panelGrid columns="8" width="100%">
+							<h:column>
+								<h:outputText value="#{msgs['reg.broughtBy']}"
+											styleClass="regGridStyle" />
+							</h:column>
+							<h:column>
+										<a4j:region>
+											<h:inputText
+												value="#{patientRegistrationForm.patient.broughtBy}"
+												id="broughtBy" styleClass="form-control inputbox">
+												<a4j:support event="onchange" reRender="broughtBy" />
+											</h:inputText>
+										</a4j:region>
+							</h:column>
+							<h:column>
+										<h:outputText value="#{msgs['reg.relation']}" 
+											styleClass="regGridStyle" />
+							</h:column>
+							<h:column>
+										<a4j:region>
+											<h:inputText styleClass="form-control inputbox" id="broughtRelation"
+												value="#{patientRegistrationForm.patient.broughtByRelation}">
+												<a4j:support event="onchange" reRender="broughtRelation" />
+											</h:inputText>
+										</a4j:region>
+										<life:message forId="broughtRelation" />
+							</h:column>
+							<h:column>
+										<h:outputText value="#{msgs['reg.address']}" 
+											styleClass="regGridStyle" />
+								</h:column>
+							<h:column>
+										<a4j:region>
+											<h:inputText styleClass="form-control inputbox" id="broughtAddress"
+												value="#{patientRegistrationForm.patient.broughtByAddress}">
+												<a4j:support event="onchange" reRender="broughtAddress" />
+											</h:inputText>
+										</a4j:region>
+										<life:message forId="broughtAddress" />
+								</h:column>
+							
+							<h:column>
+										<a4j:region>
+											<t:selectBooleanCheckbox id="isMlcase" 
+												value="#{patientRegistrationForm.patient.isMlc}">
+												<a4j:support event="onclick" reRender="mLcGrid" />
+											</t:selectBooleanCheckbox>
+										</a4j:region>
+							</h:column>
+							<h:column>
+							<h:outputText value="#{msgs['reg.isMLC']}"
+											styleClass="regGridStyle" />
+							</h:column>
+							</h:panelGrid>
+							
+							<t:div  rendered="#{patientRegistrationForm.patient.isMlc}">
+							<h:panelGrid columns="8" width="100%">
+							<h:column>		
+							
+								<h:outputText value="#{op.policeStation}" 
+									styleClass="regGridStyle" />
+							
+							</h:column>
+							<h:column>
+							
+										<a4j:region>
+											<h:inputText styleClass="form-control inputbox" id="informPoliceSt"
+												value="#{patientRegistrationForm.patient.mlcPoliceStation}">
+												<a4j:support event="onchange" reRender="informPoliceSt" />
+											</h:inputText>
+										</a4j:region>
+							
+							</h:column>
+							<h:column>
+										<h:outputText value="#{msgs['reg.MLCRemarks']}"
+											styleClass="regGridStyle" />
+							</h:column>
+							<h:column>	
+						
+										<a4j:region>
+											<h:inputText styleClass="form-control inputbox" id="mlcRemarks"
+												value="#{patientRegistrationForm.patient.mlcRemarks}">
+												<a4j:support event="onchange" reRender="mlcRemarks" />
+											</h:inputText>
+										</a4j:region>
+								</h:column>
+							<h:column>
+								<h:outputText value="MLC Type" 
+									styleClass="regGridStyle" />
+							</h:column>
+							<h:column>
+							<t:selectOneMenu  ajaxSingle="true"
+							styleClass="#{patientRegistrationForm.registration.patientType.id eq 77270 ? 'mandatoryfeild form-control inputbox' : 'form-control inputbox'}"
+								value="#{patientRegistrationForm.patient.patBrought}"
+								id="patBrought">
+								<a4j:support event = "onchange" />
+							<f:selectItems	value="#{patientRegistrationForm.patBroughtList}" />
+							</t:selectOneMenu>
+							</h:column>
+							<h:column>
+										<a4j:region>
+											<t:selectBooleanCheckbox id="isInformToPolice" 
+												value="#{patientRegistrationForm.patient.inforedPolice}">
+												<a4j:support event="onchange" reRender="isInformToPolice" />
+											</t:selectBooleanCheckbox>
+										</a4j:region>
+							</h:column>
+							<h:column>
+								<h:outputText value="#{msgs['reg.isInformedToPolice']}"
+											styleClass="regGridStyle" />
+							</h:column>
+									</h:panelGrid>
+								</t:div>
+								</t:div>
+						
+						</rich:simpleTogglePanel>
+						</t:div>
+						<t:div rendered="false">
+						<rich:simpleTogglePanel switchType="client"
+								rendered="#{not patientRegistrationForm.isRenewal and patientRegistrationForm.registration.registrationId eq null}"
+								headerClass="simpleTogglePanelHeader"
+								bodyClass="simpleTogglePanelBody"
+								label="Patient Notification">
+							<ui:include src="regPatientMessages.xhtml"/>
+						</rich:simpleTogglePanel>
+						</t:div>
+						<t:div style="display: flex;width: 100%;">
+							<rich:simpleTogglePanel switchType="client" style="width: 25%;"
+									rendered="#{patientRegistrationForm.registration.hospitalRegType.emergencyContactTab}"
+									headerClass="simpleTogglePanelHeader"
+									bodyClass="simpleTogglePanelBody"
+									label="#{msgs.emergency} #{msgs.contact}"
+									opened="#{patientRegistrationForm.registration.hospitalRegType.emergencyContactExpand}">
+								<ui:include src="regEmergencyContact.xhtml"/>
+							</rich:simpleTogglePanel>
+							<rich:simpleTogglePanel switchType="client" style="width: #{patientRegistrationForm.registration.hospitalRegType.emergencyContactTab ? '100%' : '100%'};"
+								rendered="#{patientRegistrationForm.registration.hospitalRegType.refferalTab}"
+								headerClass="simpleTogglePanelHeader"
+								bodyClass="simpleTogglePanelBody" label="#{msgs['reg.referral']}"
+								opened="false">
+								<ui:include src="regReferralData.xhtml"/>
+							</rich:simpleTogglePanel>
+						</t:div>
+						<t:div id ="couplepage">
+						<rich:simpleTogglePanel switchType="client"
+							rendered="#{patientRegistrationForm.patient.couplereg}"
+							headerClass="simpleTogglePanelHeader"
+							bodyClass="simpleTogglePanelBody" label="Is Couple">
+							<ui:include src="regCoupleDetail.xhtml"/>
+						</rich:simpleTogglePanel>
+						</t:div>
+						<rich:simpleTogglePanel switchType="client"
+							rendered="#{patientRegistrationForm.registration.hospitalRegType.residentTab}"
+							headerClass="simpleTogglePanelHeader"
+							bodyClass="simpleTogglePanelBody" label="Residence"
+							opened="#{registrationTypeForm.hospitalRegConfig.residentExpand}">
+							<ui:include src="regResidence.xhtml"/>
+						</rich:simpleTogglePanel>
+						<rich:simpleTogglePanel switchType="client"
+								id="patientIdentityToggleId"
+								rendered="#{patientRegistrationForm.registration.hospitalRegType.identificationTab}"
+								headerClass="simpleTogglePanelHeader"
+								bodyClass="simpleTogglePanelBody" label="#{msgs['reg.idInfo']}"
+								opened="#{patientRegistrationForm.registration.hospitalRegType.identificationExpand}">
+						
+								<ui:include src="regIdentityInformation.xhtml"/>
+						</rich:simpleTogglePanel>
+						
+						<rich:simpleTogglePanel switchType="client" 
+							id="patientEligibilityToggleId"
+							rendered="#{patientRegistrationForm.registration.registrationId eq null and 
+							patientRegistrationForm.registration.hospitalRegType.patientEligibilityTab}"
+							headerClass="simpleTogglePanelHeader"
+							label="Patient Eligibility"
+							opened="#{patientRegistrationForm.registration.hospitalRegType.patientEligibilityExpand}"
+							bodyClass="simpleTogglePanelBody">
+						<ui:include src="regPatientEligibility.xhtml"/>
+						</rich:simpleTogglePanel>
+						
+						<rich:simpleTogglePanel switchType="client"
+								headerClass="simpleTogglePanelHeader"
+								rendered="#{patientRegistrationForm.registration.hospitalRegType.bioMetricDetailsTab}"
+								bodyClass="simpleTogglePanelBody" label="#{op.biometricDetails}"
+								opened="#{patientRegistrationForm.registration.hospitalRegType.bioMetricDetailsExpand}">
+						<ui:include src="regBiometricDetails.xhtml"/>
+						</rich:simpleTogglePanel>
+						
+						<rich:simpleTogglePanel switchType="client"
+								rendered="#{patientRegistrationForm.registration.hospitalRegType.internationalInfoTab}"
+								headerClass="simpleTogglePanelHeader"
+								bodyClass="simpleTogglePanelBody"
+								label="#{op['patient.international.info']}"
+								opened="#{patientRegistrationForm.registration.hospitalRegType.internationalInfoExpand}">
+						<ui:include src="regPatientInternationalinfo.xhtml"/>
+						</rich:simpleTogglePanel>
+											
+						<rich:simpleTogglePanel switchType="client" 
+							id="triageNote"
+							rendered="#{patientRegistrationForm.fromED and false}"
+							headerClass="simpleTogglePanelHeader"
+							label="Triage Notes"
+							opened="true"
+							bodyClass="simpleTogglePanelBody">
+						    <style>
+							.panelGridRow {
+							    text-align: left;
+							    font-size: 14px;
+							    border: 1px thin #000000;
+							    color: #000000;
+							    vertical-align: top;
+								border-bottom: 1px solid gainsboro;
+							}
+							</style>
+						<t:saveState value="#{patientRegistrationForm.triageNote}" />
+						 <h:panelGrid columns="7" rowClasses="panelGridRow" width="100%"
+						cellpadding="5" cellspacing="10">
+						<h:column>
+							<h:outputText value="Responsiveness" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox value="#{patientRegistrationForm.triageNote.alert}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Alert" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.verbal}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Verbal" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.painful}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Painful" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.unresponsive}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Unresponsive" />
+						</h:column>
+						<h:column>
+						</h:column>
+						<h:column>
+						</h:column>
+						
+						
+						
+						<h:column>
+							<h:outputText value="10 sec pulse rate" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.tentoeighteen}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="10-18" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.lessten}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="&lt;10" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.gretereighteen}" >
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="&gt;18" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.nopulse}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="No Pulse" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.dnvd}" >
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="DNVD" />
+						</h:column>
+						<h:column>
+						</h:column>
+						
+						<h:column>
+							<h:outputText value="Respiration" />
+						</h:column>
+						<h:column>
+						<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.regular}" >
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Regular" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.dyspnoeic}" >
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Dyspnoeic" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.gasping}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Gasping" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.apnoeic}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Apnoeic" />
+						</h:column>
+						<h:column>
+						</h:column>
+						<h:column>
+						</h:column>
+						
+						
+						<h:column>
+							<h:outputText value="SPO2" />
+						</h:column>
+						<h:column>
+						<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.lesseightyeightper}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="&lt;88%" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.eightyeighttoninetytwo}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="88%-92%" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.ninetytwotoninetyninefive}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="92%-95%" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.greaterninetyfiveper}" >
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="&gt;95%" />
+						</h:column>
+						<h:column>
+						</h:column>
+						<h:column>
+						</h:column>
+						
+						<h:column>
+							<h:outputText value="Category" />
+						</h:column>
+						<h:column>
+						<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.bay}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="Bay" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.pone}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="P 1" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.ptwo}" >
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="P 2" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.pthree}" >
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="P 3" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox value="#{patientRegistrationForm.triageNote.pr}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="PR Room" />
+						</h:column>
+						<h:column>
+							<h:selectBooleanCheckbox  value="#{patientRegistrationForm.triageNote.pedia}">
+							<a4j:support event="onclick"></a4j:support>
+							</h:selectBooleanCheckbox>
+							<h:outputText value="PEDIATRIC Room" />
+						</h:column>
+						</h:panelGrid>
+						</rich:simpleTogglePanel>
+						<ui:include src="regBillData.xhtml"/>
+					</t:div>
+			</div>
+		</div>	
+
+		</a4j:outputPanel>
+
+			<rich:hotKey key="ctrl+s" id="saveKey1x" rendered="#{not patientRegistrationForm.isRenewal and 
+										patientRegistrationForm.registration.registrationId ne null}"
+				         handler="confirmUpdate();return false;" />				  
+				<rich:hotKey key="F2" id="refreshreg" handler="refreshReg();return false"    />	    	
+				<a4j:jsFunction name="refreshReg"
+								action="#{patientRegistrationForm.createRegistration}">
+								<f:setPropertyActionListener target="#{patientRegistrationForm.reload}" value="#{false}"/>
+								<f:param name="registrationCategory" value="12" />
+								<f:param name="regisType" value="1" />
+							</a4j:jsFunction>		    				 								
+				<rich:hotKey key="ctrl+a" rendered="#{patientRegistrationForm.registration.registrationId ne null}"
+				         handler="document.getElementById('navigation:createAppointmentLink').click();" />
+				    		
+							
+				<rich:hotKey key="Esc"  rendered="#{!(patientRegistrationForm.close eq null)}"
+				         handler="back();return false;" />
+				    <a4j:jsFunction name="back"  action="#{patientRegistrationForm.getClose}" rendered="#{registration.registrationCategory.lookupId eq 2006
+								and patientRegistrationForm.patient.preRegisterId ne null}"/>
+                 
+				    <rich:hotKey key="ctrl+s" id="hotregId" rendered="#{not patientRegistrationForm.isRenewal and 
+											patientRegistrationForm.registration.registrationId eq null}"
+									  handler="register();return false;" />
+					<rich:hotKey key="F9" id="printInvoiceDirect" 
+							handler="printInvDirect();return false" />
+							
+					<a4j:jsFunction name="printInvDirect" 
+						oncomplete="printDirectInvoice('#{patientRegistrationForm.originalFilename}', '#{patientRegistrationForm.duplicateFilename}');"/>
+				    
+				     <a4j:outputPanel id="registerScripts">
+					    <a4j:jsFunction name="register"  action="#{patientRegistrationForm.posUtil.startTransaction}" reRender="error,regButtons,mrnoId,queueno"
+					    	rendered="{patientRegistrationForm.posUtil.usePos}"
+							oncomplete="if(#{patientRegistrationForm.patient.isAppointmentRequired  and patientRegistrationForm.registration.hospitalRegType.chargeConfiguration eq 'POST_COLLECT'}){printbillcumreceipt('#{patientRegistrationForm.registration.invoiceId}','#{patientRegistrationForm.registration.encounter.visit.visitId}','#{patientRegistrationForm.generatedBy}')};if(!#{patientRegistrationForm.patient.isAppointmentRequired}){printbillcumreceipt('#{patientRegistrationForm.registration.invoiceId}','#{patientRegistrationForm.registration.encounter.visit.visitId}','#{patientRegistrationForm.isDirectRenew}','false','#{patientRegistrationForm.registration.registrationId}')};"/>
+					    <a4j:jsFunction name="register"  action="#{patientRegistrationForm.formValidator}" reRender="error,regButtons,mrnoId,queueno"
+					    	rendered="{!patientRegistrationForm.posUtil.usePos}"
+							oncomplete="if(#{patientRegistrationForm.patient.isAppointmentRequired  and patientRegistrationForm.registration.hospitalRegType.chargeConfiguration eq 'POST_COLLECT'}){printbillcumreceipt('#{patientRegistrationForm.registration.invoiceId}','#{patientRegistrationForm.registration.encounter.visit.visitId}','#{patientRegistrationForm.generatedBy}','#{patientRegistrationForm.patient.MRNO}')};if(!#{patientRegistrationForm.patient.isAppointmentRequired}){printbillcumreceipt('#{patientRegistrationForm.registration.invoiceId}','#{patientRegistrationForm.registration.encounter.visit.visitId}','#{patientRegistrationForm.isDirectRenew}','false','#{patientRegistrationForm.registration.registrationId}','#{patientRegistrationForm.patient.MRNO}')};"/>
+					</a4j:outputPanel>
+				   	  <rich:hotKey key="ctrl+p" rendered="#{patientRegistrationForm.registration.registrationId ne null}"																						
+									  handler="loadReportOptions();" />
+									  
+					<a4j:jsFunction name="renderprintpaneldiv"  ajaxSingle="true"
+									reRender="printInvoiceModal"/>
+				    
+				     <rich:hotKey key="ctrl+l"  handler="regList();return false;"/>
+									  
+				    <a4j:jsFunction name="regList"  action="#{patientRegistrationForm.getClose}"/>
+				    			    
+				    <rich:hotKey key="F3" id="walkin" handler="walkin();return false;" />
+							<a4j:jsFunction name="walkin"
+								action="createencounter">
+								<f:setPropertyActionListener target="#{opdBrowserForm.isWalkin}" value="#{true}"/>
+						        <f:setPropertyActionListener target="#{patientControlForm.patMrNo}" value=""/>
+						        <f:setPropertyActionListener target="#{patientControlForm.patientImage}" 
+						                  value="admissionreq.jpg"/>
+							</a4j:jsFunction>
+							<rich:hotKey key="F9" id="mutipleencounter" handler="mutipleencounter();return false;" />
+							<a4j:jsFunction name="mutipleencounter"
+								action="createmultipleencounter">
+								<f:setPropertyActionListener target="#{patientControlForm.patMrNo}" value=""/>
+							 <f:setPropertyActionListener target="#{multipleEncounterForm.showBackBtn}" value="#{false}"/>
+							</a4j:jsFunction>
+					 <rich:hotKey key="F4" id="appointments" handler="appointments();return false;" />
+							<a4j:jsFunction name="appointments"
+								action="appointmentscheduler">
+							</a4j:jsFunction>
+					<rich:hotKey key="F6" id="viewPatients" handler="viewPatients();return false;" />
+							<a4j:jsFunction name="viewPatients"
+								action="goToOPDBrowser">
+							</a4j:jsFunction>
+					<rich:hotKey key="F7" id="referralPatients" handler="referralPatients();return false;" />
+							<a4j:jsFunction name="referralPatients"
+								action="#{opdBrowserForm.goToReferalPage}">
+							</a4j:jsFunction>
+					<rich:hotKey key="F8" id="billing" handler="billing();return false;" />
+							<a4j:jsFunction name="billing"
+								action="#{invoiceBillingForm.navigatefromDirectInvoice}">
+								<f:setPropertyActionListener target="#{invoiceBillingForm.billingNav}" value="1"/>
+								<a4j:actionparam name="isdirect"
+											assignTo="#{invoiceBillingForm.isDirectInvoice}"
+											value="#{true}" />
+							</a4j:jsFunction>
+				        
+			<h:panelGrid columns="1" width="100%" id="regButtons"
+						rendered="#{patientRegistrationForm.patient.patientStatus.lookupId ne 10}">
+						<h:column>
+							<table>
+								<tr>
+									<td>
+									<h:inputHidden id="smartCardPath" value="#{patientRegistrationForm.patientSmartCard}"/>
+									<h:inputHidden id="barCodePath" value="#{patientRegistrationForm.barCodePath}"/>
+									<h:inputHidden id="labelpath" value="#{patientRegistrationForm.labelpath}"/>
+									
+									<a4j:commandButton value="#{msgs.regis}" ajaxSingle="true" tabindex="21"  onkeydown="if(event.keyCode == 9){focusHtmlElement('navigation:patPrefix');}"
+										eventsQueue="registrationa4jQueue" reRender="error,regButtons,mrnoId,queueno,directprint,queueTypeConsultation,registrationOutputPanel"
+										id="register_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}Btn"
+										rendered="#{not patientRegistrationForm.isRenewal and
+											patientRegistrationForm.registration.registrationId eq null and !patientRegistrationForm.posUtil.usePos}"
+										title="#{msgs.save} #{msgs.registration}"
+										action="#{patientRegistrationForm.registerPatient}"
+										oncomplete="if(window.notifyHdspRegistrationSuccess){notifyHdspRegistrationSuccess('#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.registration.encounter.visit.visitId}');} if(#{patientRegistrationForm.isBillgenerated}){printbillcumreceiptNew('#{patientRegistrationForm.isBillgenerated}',false);}">
+										<a4j:support event="onclick" ajaxSingle="true"></a4j:support>
+									</a4j:commandButton>
+									<a4j:commandButton value="Register And Whatsapp" ajaxSingle="true" tabindex="21"  onkeydown="if(event.keyCode == 9){focusHtmlElement('navigation:patPrefix');}"
+										eventsQueue="registrationa4jQueue" reRender="error,regButtons,mrnoId,queueno,directprint,queueTypeConsultation,registrationOutputPanel"
+										id="register_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}BtnWhatsapp"
+										rendered="#{not patientRegistrationForm.isRenewal and
+											patientRegistrationForm.registration.registrationId eq null and !patientRegistrationForm.posUtil.usePos and preferencesBean.privileges['To Send Invoice In Whatsapp For Registration:patientregistration:patientregIdWhatsapp']}"
+										title="#{msgs.save} #{msgs.registration}"
+										action="#{patientRegistrationForm.registerPatient}"
+										oncomplete="if(window.notifyHdspRegistrationSuccess){notifyHdspRegistrationSuccess('#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.registration.encounter.visit.visitId}');} if(#{patientRegistrationForm.isBillgenerated}){printbillcumreceiptNew('#{patientRegistrationForm.isBillgenerated}',true,'#{patientRegistrationForm.registration.patient.patientId}','#{patientRegistrationForm.invoiceBillFileName}');}">
+										<a4j:support event="onclick" ajaxSingle="true"></a4j:support>
+									</a4j:commandButton>
+									<a4j:commandButton value="#{msgs.regis} with POS" ajaxSingle="true" tabindex="21"  onkeydown="if(event.keyCode == 9){focusHtmlElement('navigation:patPrefix');}"
+										eventsQueue="registrationa4jQueue" reRender="error,regButtons,mrnoId,queueno,directprint,queueTypeConsultation,registrationOutputPanel"
+										id="register_pos_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}Btn"
+										rendered="#{not patientRegistrationForm.isRenewal and 
+											patientRegistrationForm.registration.registrationId eq null and patientRegistrationForm.posUtil.usePos}"
+										title="#{msgs.save} #{msgs.registration}" styleClass="register-btn"
+										action="#{patientRegistrationForm.posUtil.startTransaction}">
+										<a4j:support event="onclick" ajaxSingle="true"></a4j:support>
+									</a4j:commandButton>
+									<a4j:commandButton value="#{msgs.regis} with POS And Whatsapp" ajaxSingle="true" tabindex="21"  onkeydown="if(event.keyCode == 9){focusHtmlElement('navigation:patPrefix');}"
+										eventsQueue="registrationa4jQueue" reRender="error,regButtons,mrnoId,queueno,directprint,queueTypeConsultation,registrationOutputPanel"
+										id="register_pos_wt_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}Btn"
+										rendered="#{not patientRegistrationForm.isRenewal and 
+											patientRegistrationForm.registration.registrationId eq null and patientRegistrationForm.posUtil.usePos and preferencesBean.privileges['To Send Invoice In Whatsapp For Registration:patientregistration:patientregIdWhatsapp']}"
+										title="#{msgs.save} #{msgs.registration}" styleClass="register-btn"
+										action="#{patientRegistrationForm.posUtil.startTransaction}">
+										<a4j:support event="onclick" ajaxSingle="true"></a4j:support>
+										<f:param name="sendToWhatsapp" value="1"/>
+									</a4j:commandButton>
+									<a4j:commandButton id="directprint"	value="Print Invoice(F9)" rendered="#{patientRegistrationForm.showPrintButton}"
+							 			oncomplete="printDirectInvoice('#{patientRegistrationForm.originalFilename}', '#{patientRegistrationForm.duplicateFilename}');" 
+							 			onclick="jQueryHide(this);" />
+							 		
+									
+<!-- 										<a4j:commandLink  rendered="false" -->
+<!-- 										oncomplete="if(#{patientRegistrationForm.patient.isAppointmentRequired and patientRegistrationForm.registration.encounter.siteWiseAppointmentConfig.chargeConfiguration eq 'POST_COLLECT'}) -->
+<!-- 										{printbillcumreceipt('#{patientRegistrationForm.registration.invoiceId}','#{patientRegistrationForm.registration.encounter.visit.visitId}')}; -->
+<!-- 										if(#{!patientRegistrationForm.patient.isAppointmentRequired and patientRegistrationForm.registration.hospitalRegType.chargeConfiguration eq 'POST_COLLECT'}) -->
+<!-- 										{printbillcumreceipt('#{patientRegistrationForm.registration.invoiceId}','#{patientRegistrationForm.registration.encounter.visit.visitId}','#{patientRegistrationForm.isDirectRenew}','false','#{patientRegistrationForm.registration.registrationId}')}; -->
+<!-- 										"> -->
+<!-- 									</a4j:commandLink> -->
+									<a4j:commandButton
+										value="#{msgs.save}(Ctrl+s)" eventsQueue="registrationa4jQueue"
+										id="registrationEditBtn"
+										rendered="#{not patientRegistrationForm.isRenewal and patientRegistrationForm.registration.registrationId ne null and preferencesBean.privileges['Modify patient Registation Save Button:navigation:registrationEditBtn']}"
+										title="#{msgs.save} #{msgs.registration}"
+										onclick="confirmUpdate();return false;" /></td>
+									<td>
+									<a4j:commandButton
+										value="#{msgs['print']}"
+										id="reg_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}Print"
+										rendered="#{false and patientRegistrationForm.registration.registrationId ne null
+										and patientRegistrationForm.isRegPrint}"
+										action="#{patientRegistrationForm.printFromPrintAction}"
+										oncomplete="printAll(#{patientRegistrationForm.serverSidePrint},'#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.registration.registrationCategory.lookupId}','#{patientRegistrationForm.registration.registrationId}','#{patientRegistrationForm.isDirectRenew}','#{patientRegistrationForm.isRenewal}','false');"
+										reRender="registrationOutputPanel" />
+									<a4j:commandButton
+										value="#{msgs['print']}"
+										id="reg_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}RenewPrint"
+										rendered="#{false and patientRegistrationForm.registration.registrationId ne null
+										and patientRegistrationForm.isRenewPrint}"
+										action="#{patientRegistrationForm.printFromPrintAction}"
+										oncomplete="printAll(#{patientRegistrationForm.serverSidePrint},'#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.registration.registrationCategory.lookupId}','#{patientRegistrationForm.registration.registrationId}','#{patientRegistrationForm.isDirectRenew}','#{patientRegistrationForm.isRenewal}','false');"
+										reRender="registrationOutputPanel" /></td>
+									<td><a4j:commandButton
+										value="Smart Card Print (alt+s)" target="_blank"  reRender="regButtons,log,logdiv,logbtn"
+										action="#{patientRegistrationForm.generatesmartcardtextfile}"  accesskey="s"
+										id="smartCardPrintBtn"
+										rendered="#{patientRegistrationForm.registration.registrationId ne null and !(patientRegistrationForm.modifyFromHR)} "
+										oncomplete="confirmSmartCardtextfile('#{patientRegistrationForm.barCodePath}')" >
+										<f:param name="print" value="card" />
+										</a4j:commandButton>
+									</td>
+									<td>
+										<a4j:commandButton value="Print SmartCard(alt+s)" id="printdupsmartcard_1" style="float:left"
+											action="#{mrdfileissuebean.duplicateSmartCard}" reRender="duplicate"  
+											rendered="false"
+											oncomplete="printBarCode('#{mrdfileissuebean.smartCardFileName}','#{mrdfileissuebean.enableAutoPrint}','#{mrdfileissuebean.patientId}','smartcard')" >
+											<f:param name="duplicate" value="smartcard" />
+											<a4j:actionparam name="patmrnp"
+											assignTo="#{mrdfileissuebean.mrn}" value="#{patientRegistrationForm.patient.MRNO}" />
+									</a4j:commandButton>
+									</td>
+									<td>
+									<a4j:commandButton value="Print Label" id="printduplabel_1" style="float:left"
+											action="#{patientRegistrationForm.printPatientLabel}" reRender="duplicate," accesskey="a"
+											rendered="#{patientRegistrationForm.registration.registrationId ne null and !(patientRegistrationForm.modifyFromHR)}"
+											oncomplete="printpatientlabel('#{patientRegistrationForm.patientLabelFileName}')" >
+											<f:param name="duplicate" value="label" />
+											<f:param name="print" value="label" />
+											<f:param name="mrno" value ="#{patientRegistrationForm.patient.MRNO}" />
+											<a4j:actionparam name="patmrnp" assignTo="#{mrdfileissuebean.mrn}" value="#{patientRegistrationForm.patient.MRNO}" />
+									</a4j:commandButton>
+									 </td>
+									<td>
+									<a4j:commandButton value="Print Smart Card" id="printduplabel_2" style="float:left"
+											action="#{patientRegistrationForm.printPatientLabel}" reRender="duplicate," accesskey="a"
+											rendered="#{patientRegistrationForm.registration.registrationId ne null and !(patientRegistrationForm.modifyFromHR)}"
+											oncomplete="printpatientlabel('#{patientRegistrationForm.patientLabelFileName}')" >
+											<f:param name="duplicate" value="smartcard" />
+											<f:param name="print" value="card" />
+											<f:param name="mrno" value ="#{patientRegistrationForm.patient.MRNO}" />
+											<a4j:actionparam name="patmrnp" assignTo="#{mrdfileissuebean.mrn}" value="#{patientRegistrationForm.patient.MRNO}" />
+									</a4j:commandButton>
+									 </td>
+									
+									<td><a4j:commandButton   
+										value="Smart Card Print" target="_blank"
+										action="#{patientRegistrationForm.generateSmartCard}"
+										reRender = "regButtons,registrationOutputPanel"
+										id="smartCardPrintBtns"
+										rendered="false"
+										oncomplete="smartCardGenerate('#{patientRegistrationForm.patient.patientId}');" />
+									</td>
+									<td><a4j:commandButton
+										value="#{msgs.regis} #{msgs['and']} #{msgs.print}"
+										id="register_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}AndPrint"
+										rendered="#{false and not patientRegistrationForm.isRenewal and
+									 		patientRegistrationForm.registration.registrationId eq null}"
+										title="#{msgs.save}#{msgs.registration}"
+										action="#{patientRegistrationForm.formValidator}"
+										oncomplete="printAll(#{patientRegistrationForm.serverSidePrint},'#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.registration.registrationCategory.lookupId}','#{patientRegistrationForm.registration.registrationId}','#{patientRegistrationForm.isDirectRenew}','#{patientRegistrationForm.isRenewal}','false');"
+										reRender="registrationOutputPanel,tokens,selectedQueueNo,preQueueNo,tokenspanel">
+										<a4j:actionparam id="printrequiredId" name="fprintrequiredId"
+											assignTo="#{patientRegistrationForm.registration.printRequired}"
+											value="true" />
+									</a4j:commandButton></td>
+									<td><a4j:commandButton title="#{msgs.save}#{msgs.renew}"
+										id="reg_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}ReNew"
+										value="#{msgs.renew}"
+										rendered="#{patientRegistrationForm.isRenewal and patientRegistrationForm.registration.registrationId eq null}"
+										disabled="#{patientRegistrationForm.patient.patientId eq null}"
+										action="#{patientRegistrationForm.renewRegistration}"
+										reRender="registrationOutputPanel,directprint,error,regButtons,mrnoId,queueno,directprint"
+										oncomplete="if(#{!patientRegistrationForm.enableAutoPrint}){if(#{patientRegistrationForm.patient.isAppointmentRequired})
+ 										{printbillcumreceipt('#{patientRegistrationForm.registration.invoiceId}','#{patientRegistrationForm.registration.encounter.visit.visitId}','#{patientRegistrationForm.generatedBy}','#{patientRegistrationForm.patient.MRNO}')}};
+ 										if(#{!patientRegistrationForm.enableAutoPrint}){if(#{!patientRegistrationForm.patient.isAppointmentRequired}) 
+										{printbillcumreceipt('#{patientRegistrationForm.registration.invoiceId}','#{patientRegistrationForm.registration.encounter.visit.visitId}','#{patientRegistrationForm.isDirectRenew}','false','#{patientRegistrationForm.registration.registrationId}','#{patientRegistrationForm.patient.MRNO}')}};" /> 
+									
+									
+									
+									<a4j:commandButton
+										id="openPrintReports"
+										rendered="#{patientRegistrationForm.registration.registrationId ne null and !(patientRegistrationForm.modifyFromHR)}"
+										value="#{op.print}(ctrl+p)"
+										action="#{patientRegistrationForm.modifyErrorOccured}"
+										oncomplete="loadReportOptions();">
+									</a4j:commandButton>
+									
+									<a4j:jsFunction name="loadReportOptions"
+										action="#{patientRegistrationForm.generateSmartCard}"
+										value="#{op.print}">
+										<a4j:support event="oncomplete" action="#{reportPrintForm.loadPrintReports}"
+											oncomplete="if(#{!(patientRegistrationForm.errorOccured)}){javascript:Richfaces.showModalPanel('modalPrintReports')}"
+											reRender="printOptionsForm:mainDetails,printOptionsForm:preRegistrationErrors,printOptionsForm:patDetails">
+											<f:param name="featureName"
+												value="#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationType}" />
+											<f:param name="appointment" 
+											value="#{patientRegistrationForm.patient.isAppointmentRequired}"></f:param>
+										</a4j:support>
+										
+									</a4j:jsFunction></td>
+
+									<td><t:div id="createAppointment"
+										rendered="#{patientRegistrationForm.registration.registrationId ne null and false}">
+										<input type="button" value="#{msgs['createAppointment']}(ctrl+a)"
+											onclick="document.getElementById('navigation:createAppointmentLink').click();" />
+								     <h:commandLink id="createAppointmentLink"
+								     	action="#{appointmentScheduleForm.createAppointment}">
+										<f:param name="patientDetails"
+								    		value="#{patientRegistrationForm.patient.patientId}@nr@#{patientRegistrationForm.patient.patientName}@nr@#{patientRegistrationForm.patient.MRNO}@nr@#{patientRegistrationForm.patient.depId}@nr@null" />
+										<a4j:actionparam name="mrno"
+											 assignTo="#{patientControlForm.patMrNo}"
+											 value="#{patientRegistrationForm.patient.MRNO}" />
+										<a4j:actionparam name="backingBeanName"
+											 assignTo="#{patientControlForm.backingBeanName}"
+											 value="appointmentScheduleForm" />
+										<a4j:actionparam name="onPatientSelectCallBack"
+											  assignTo="#{patientControlForm.onPatientSelectCallBack}"
+											   value="loadVisit" />
+										<a4j:actionparam name="includePatSearch"
+											  assignTo="#{patientControlForm.includePatSearch}"
+											  value="#{false}" />
+										<a4j:actionparam name="isReschedule"
+											 assignTo="#{appointmentScheduleForm.isReschedule}"
+											  value="#{false}" />
+								  		<a4j:actionparam name="isDirect" value="#{true}" />
+									</h:commandLink>
+							     </t:div></td>
+							     
+							     
+							     <td><t:div id="createencounter"
+							     	rendered="#{patientRegistrationForm.registration.registrationId ne null and false}">
+								   <a4j:commandButton value="Make Encounter "
+										id="createQueueNoMenuId" reRender="bayManagementErrors"
+										action="#{opdBrowserForm.openFollowUpEncounter}">
+										<a4j:actionparam name="scheduleId" value="253" />
+										<a4j:actionparam name="mrno"
+											assignTo="#{patientControlForm.patMrNo}"
+											 value="#{patientRegistrationForm.patient.MRNO}" />
+										<a4j:actionparam name="patientId"
+											assignTo="#{opdBrowserForm.patientId}" value="#{patientRegistrationForm.patient.patientId}" />
+										<a4j:actionparam name="backingBeanName"
+											assignTo="#{patientControlForm.backingBeanName}"
+											value="opdBrowserForm" />
+										<a4j:actionparam name="onPatientSelectCallBack"
+											assignTo="#{patientControlForm.onPatientSelectCallBack}"
+											value="loadVisit" />
+										<a4j:actionparam name="includePatSearch"
+											assignTo="#{patientControlForm.includePatSearch}"
+											value="#{false}" />
+										<a4j:actionparam name="isWalkinId"
+											assignTo="#{opdBrowserForm.isWalkin}" value="#{false}" />
+									</a4j:commandButton>
+							     
+							     </t:div></td>
+							     
+							     
+				               <td><h:commandButton value="#{msgs['reg.goToPaging']}"
+										action="#{pagingListForm.backToPaging}" id="goToPagingId"
+										rendered="#{registration.registrationCategory.lookupId eq 2006
+								        and patientRegistrationForm.patient.preRegisterId ne null}">
+									</h:commandButton> <a4j:commandButton value="#{msgs['back']}" id="backId" ajaxSingle="true"
+										action="#{patientRegistrationForm.goBack}" immediate="true"
+ 										rendered="#{!(patientRegistrationForm.close eq null) and !(patientRegistrationForm.modifyFromHR) }">
+									</a4j:commandButton>
+									<a4j:commandButton value="back" id="backHRId" ajaxSingle="true"
+										action="#{employeeMasterForm.editEmployee}" 
+										rendered ="#{patientRegistrationForm.modifyFromHR}" immediate="true"  >
+ 										<f:param name="employeeId" value="#{patientRegistrationForm.employeeId}" />
+									</a4j:commandButton></td>
+									
+							<td>		
+						<div>
+                    
+					  <a4j:commandButton value="Check SlotWise Availability"  id="appointmenttime" 
+						rendered="#{ !(patientRegistrationForm.modifyFromHR)}"
+						onclick="javascript:Richfaces.showModalPanel('forapptime')" />
+                     </div></td>
+                     <td>
+                     	<div>
+                     		<a4j:commandButton value="Print Case Sheet" id="caseSheetPrint"
+											action="#{mrdfileissuebean.duplicateSmartCard}" reRender="registrationOutputPanel" accesskey="a"
+											rendered="#{patientRegistrationForm.registration.registrationId ne null and !(patientRegistrationForm.modifyFromHR)}"
+											oncomplete="printCaseSheet('#{patientRegistrationForm.patient.patientId}','en','#{mrdfileissuebean.enableAutoPrint}','#{mrdfileissuebean.smartCardFileName}');" >
+											<f:param name="duplicate" value="caseSheet" />
+											<a4j:actionparam name="patmrnp" assignTo="#{mrdfileissuebean.mrn}" value="#{patientRegistrationForm.patient.MRNO}" />
+									</a4j:commandButton>
+            
+                     </div>
+						</td>			
+									
+									<td><h:outputLabel styleClass="blackFontStyle"
+										value="#{msgs['reg.renewalCharges']} : "
+										rendered="#{patientRegistrationForm.isRenewal or patientRegistrationForm.isDirectRenew}" /></td>
+									<td><h:outputLabel id="renewchargeId"
+										styleClass="redfontStyle"
+										value="#{patientRegistrationForm.registration.renewalCharge}"
+										rendered="#{patientRegistrationForm.isRenewal or patientRegistrationForm.isDirectRenew}" /></td>
+
+									<td><a4j:jsFunction name="updateConfirmPrint"
+										action="#{patientRegistrationForm.formValidator}"
+										oncomplete="printAll(#{patientRegistrationForm.serverSidePrint},'#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.registration.registrationCategory.lookupId}','#{patientRegistrationForm.registration.registrationId}','#{patientRegistrationForm.isDirectRenew}','#{patientRegistrationForm.isRenewal}','false');"
+										 /> <a4j:commandButton
+										value="#{msgs.save} #{msgs['and']} #{msgs.print}"
+										id="regEdit_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}AndPrint"
+										rendered="#{false and not patientRegistrationForm.isRenewal and
+								 		patientRegistrationForm.registration.registrationId ne null}"
+										title="#{msgs.save} #{msgs.registration}"
+										onclick="confirmUpdatePrint('#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.registration.registrationCategory.lookupId}');" /></td>
+									<td><a4j:jsFunction name="callReprintAction"
+										action="#{patientRegistrationForm.postReprintCharges}">
+									</a4j:jsFunction>
+									
+									
+									
+									<a4j:commandButton value="#{msgs['reg.rePrint']}"
+										target="_blank"
+										id="reg_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}RePrint"
+										rendered="#{false and patientRegistrationForm.registration.registrationId ne null
+										and patientRegistrationForm.isRegRePrint}"
+										action="#{patientRegistrationForm.callReprint}"
+										oncomplete="rePrint('#{patientRegistrationForm.isMessage}','#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.registration.registrationCategory.lookupId}','#{patientRegistrationForm.registration.registrationId}','#{patientRegistrationForm.isDirectRenew}','#{patientRegistrationForm.isRenewal}','true');" />
+									<a4j:commandButton value="#{msgs['reg.rePrint']}"
+										target="_blank"
+										id="reg_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}RenewRePrint"
+										rendered="#{false and patientRegistrationForm.registration.registrationId ne null
+										and patientRegistrationForm.isRenewRePrint}"
+										action="#{patientRegistrationForm.callReprint}"
+										oncomplete="rePrint('#{patientRegistrationForm.isMessage}','#{patientRegistrationForm.patient.MRNO}','#{patientRegistrationForm.patient.patientId}','#{patientRegistrationForm.registration.registrationCategory.lookupId}','#{patientRegistrationForm.registration.registrationId}','#{patientRegistrationForm.isDirectRenew}','#{patientRegistrationForm.isRenewal}','true');" />
+									</td>
+									<td>
+										<a4j:commandButton value="Couple SmartCard" id="couplesmartcard_1" style="float:left"
+											action="#{mrdfileissuebean.duplicateSmartCardForCouple}" reRender="duplicate"    
+											rendered="#{patientRegistrationForm.registration.registrationId ne null and !patientRegistrationForm.registrationPageNav and patientRegistrationForm.couplecheck and patientRegistrationForm.patient.couplereg}"
+											oncomplete="printBarCode('#{mrdfileissuebean.smartCardFileName}','#{mrdfileissuebean.enableAutoPrint}','#{mrdfileissuebean.couplePatientId}','smartcard')" >
+											<f:param name="duplicate" value="smartcard" />
+											<f:param name="mrno" value="#{patientRegistrationForm.patient.MRNO}" />
+											<f:param name="iscouple" value="Y" />
+											<a4j:actionparam name="patmrnp"
+											assignTo="#{mrdfileissuebean.mrn}" value="#{patientRegistrationForm.couplepatient.MRNO}" />
+										</a4j:commandButton>
+									</td>
+									<td>
+										<a4j:commandButton value="Couple Label(alt+a)" id="coupleduplabel_1" style="float:left"
+											action="#{mrdfileissuebean.duplicateSmartCard}" reRender="duplicate"  
+											rendered="#{patientRegistrationForm.registration.registrationId ne null and !patientRegistrationForm.registrationPageNav and patientRegistrationForm.couplecheck and patientRegistrationForm.patient.couplereg}"
+											oncomplete="printBarCode('#{mrdfileissuebean.smartCardFileName}','#{mrdfileissuebean.enableAutoPrint}','#{mrdfileissuebean.patientId}','label')" >
+											<f:param name="duplicate" value="label" />
+											<f:param name="iscouple" value="Y" />
+											<a4j:actionparam name="patmrnp" assignTo="#{mrdfileissuebean.mrn}" value="#{patientRegistrationForm.couplepatient.MRNO}" />
+											<f:param name="mrno" value="#{patientRegistrationForm.patient.MRNO}" />
+										</a4j:commandButton>
+									 </td>
+								</tr>
+							</table>
+						</h:column>
+					</h:panelGrid>
+					<h:outputText
+						value="#{patientRegistrationForm.registration.createdDatetime}"
+						style="display:none;" id="createdDate">
+						<f:convertDateTime pattern="#{preferencesBean.dateTimePattern}"
+							timeZone="#{preferencesBean.timeZone}" />
+					</h:outputText>
+					<h:outputText
+						value="#{patientRegistrationForm.registration.createdBy}"
+						style="display:none;" id="createdId">
+					</h:outputText>
+				
+				<a4j:jsFunction name="updateConfirm"
+					action="#{patientRegistrationForm.formValidator}"
+					reRender="registrationOutputPanel,errorPanelReg,itemErrorPanel">
+				</a4j:jsFunction>
+				
+				<a4j:jsFunction name="refreshRegistration"
+					action="#{patientRegistrationForm.loadPatientRegistration}"
+					reRender="registrationOutputPanel,regButtons,fm,patImage">
+						<f:param name="registrationCategory" value="12" />
+						<f:param name="regisType" value="1" />
+						<a4j:actionparam name="staffno" value ="1" assignTo ="#{patientRegistrationForm.staf}"/>
+				</a4j:jsFunction>
+				
+				<a4j:jsFunction name="checkduplicate"  
+					action="#{patientRegistrationForm.checkPatientDuplicate}"
+					reRender="duplicateListId,coverWindow,patMobileNo" />
+					
+				<a4j:jsFunction name="setAppointmentDetails"
+					eventsQueue="registrationa4jQueue"
+					action="#{patientRegistrationForm.setAppointmentDetails}"
+					reRender="appointmentGrid,paymentDetailsPanelId">
+					<a4j:actionparam name="departmentId" />
+					<a4j:actionparam name="unitId" />
+					<a4j:actionparam name="consultantId" />
+					<a4j:actionparam name="appointmentDateTime" />
+				</a4j:jsFunction>
+				<a4j:jsFunction name="sendReportsInWhatsapp"
+					action="#{utilityBean.sendReportsInWhatsapp}"
+					id="sendReportsInWhatsappId" reRender="error" >
+					<f:param name="whatsappReportUrl"  />
+					<f:param name="patientId"  />
+					<f:param name="fileTypeName"  />
+					<f:param name="patientDetailsJson" value="{}" />
+					<f:param name="templateName" value="op_bill" />
+		        </a4j:jsFunction>
+			</h:form>
+			<script type="text/javascript">
+		
+	</script>
+		<script type="text/javascript">
+		function aadhaarNoFormatting(){
+			var aadhaarNo = document.getElementById("navigation:aadhaarNo").value;
+			if(aadhaarNo.length==4 ||aadhaarNo.length==9){
+				document.getElementById("navigation:aadhaarNo").value = aadhaarNo + "-";
+			}
+		}
+	</script>
+	
+			<script type="text/javascript">
+			
+				 
+   function formReg()
+		
+	{  
+		 alert("hi1");
+		  $(".panel-body").hide();
+		   
+		 $("#form1").show();
+		  
+		  $("a").click(function () {
+  		  var id = $(this).data("id");
+		      alert(id);
+    		$(".panel-body").hide(200);
+    		$("#form" + id).show(200);
+			});
+			
+			 $("button").click(function () {
+  		  var id = $(this).data("id");
+		      
+    		$(".panel-body").hide(200);
+    		$("#form" + id).show(200);
+			});
+		
+	}
+		
+   	
+
+  	function sub(){
+	  alert("submitted successfully");
+	}
+			
+				    function confirmUpdate(){
+						var str = confirm("#{op.reviewChanges}");
+						if(str==true){
+							updateConfirm();
+						}
+					}
+				    function confirmUpdatePrint(mrno,patId,catLookup){
+						var str = confirm("#{op.saveChangeAndPrint}");
+						if(str==true){
+							updateConfirmPrint();
+							//printReport(mrno,patId,catLookup);
+						}
+					}
+				    /*function confirmPrint(mrno,patId,catLookup){
+							printReport(mrno,patId,catLookup);
+					} */
+				    function rePrint(message,mrno,patId,catLookup,regId,isRenew,isDirectRenew,isRePrint){
+					    if(message!=null){
+						    if(message!=''){
+					    	var str = confirm(message);
+							if(str==true){
+								callReprintAction();
+								printReport(mrno,patId,catLookup,regId,isRenew,isDirectRenew,isRePrint);
+							}
+						    }
+						    else{
+						    	printReport(mrno,patId,catLookup,regId,isRenew,isDirectRenew,'false');
+						    }
+					    }
+					    else{
+					    	printReport(mrno,patId,catLookup,regId,isRenew,isDirectRenew,'false');
+					    }
+					}
+				    function confirmSmartCardPrint(mrno,patId,catLookup){
+							printSmartCardReport(mrno);
+					}
+					function confirmReprintFunction(){
+						confirmReprintJs();
+					}
+					function printAll(isServerSidePrint,mrno, patientId, registrationCategory,regId,isRenew,isDirectRenew,isRePrint) {
+						if (!isServerSidePrint) {
+							printReport(mrno,patientId,registrationCategory,regId,isRenew,isDirectRenew,isRePrint);
+							confirmSmartCardPrint(mrno,patientId,registrationCategory);
+							RecordLabelPrint(isRenew, isDirectRenew, isRePrint, mrno.toString(), regId);
+						}
+					}
+
+					function printCaseSheet(patientId,locale,enableAutoPrint,filename){
+						strDate = document.getElementById("navigation:createdDate").innerHTML;
+						strId = document.getElementById("navigation:createdId").innerHTML;
+						if(patientId!=""){
+							if(enableAutoPrint == 'true'){
+								if(filename != ''){
+								 	var org = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos?type_=99&amp;filename="+filename;
+								 	window.open(org,'mywindow1');     
+								}  
+							}
+							else{
+								var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=caseSheet.rptdesign&amp;patientId="+patientId+"&amp;__locale=" + locale+"&amp;reportLanguage="+locale+"&amp;preparedId="+strId+"&amp;preparedDate="+strDate;
+							  	window.open(MyPage,'caseSheetWindow');
+							}
+					  	
+						} 
+
+					}
+
+					function printReport(isRenew,isDirectRenew,isRePrint,regId)
+					{
+						
+						if(regId!=""){
+							var locale = document.getElementById('lang').value;
+							var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos/?type_=3";
+							var extraParam="&amp;isRenew="+isRenew+"&amp;isDirectRenew="+isDirectRenew+"&amp;isRePrint="+isRePrint+"&amp;registrationId="+regId+"&amp;serverpath="+serverpath;
+						  	var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=PatientRegistrationReceipt.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;__locale=" + locale+extraParam;
+							window.open(MyPage,'receiptWindow');
+						}  
+						
+					}
+					
+					function RecordLabelPrint(isRenew,isDirectRenew,isRePrint,mrno) {
+						if(mrno!=""){
+							var locale = document.getElementById('lang').value;
+							var patmrno = "*"+mrno.toString();
+							var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos/?type_=3";
+							var extraParam="&amp;isRenew="+isRenew+"&amp;isDirectRenew="+isDirectRenew+"&amp;isRePrint="+isRePrint+"&amp;mrno="+patmrno+"&amp;serverpath="+serverpath;
+						  	var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=RecordLabelPrint.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;__locale=" + locale+extraParam;
+							window.open(MyPage,'mywindow2');
+						}
+					}
+					
+					function printWristReport(mrno,id,catId,regId,isRenew,isDirectRenew,isRePrint){	
+						//var tempmrno=mrno.replace(/^\s+|\s+$/g,"");
+						if(regId!=""){
+							var locale = document.getElementById('lang').value;
+							var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos/?type_=3";
+							var extraParam="&amp;registrationId="+regId+"&amp;isRenew="+isRenew+"&amp;isDirectRenew="+isDirectRenew+"&amp;isRePrint="+isRePrint+"&amp;serverpath="+serverpath;
+						  	var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=RegistrationCard1.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;__locale=" + locale+extraParam;
+						  	window.open(MyPage,'WristReport');
+						}  
+				}
+					 function printSmartCardReport(mrno,pageType,masterPageType,serverpath){	
+						
+						  	var MyPage = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=html&amp;ReportName=smartcard.rptdesign&amp;__id="+pageType+"&amp;__masterpage="+masterPageType+"&amp;MRN="+mrno+"&amp;ServerPath="+serverpath;
+						  	window.open(MyPage,'mywindow2');   
+					  }
+					 function smartCardPrint(fileName,patientid){ 
+							if(patientid!=""){
+								var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos/?type_=45&amp;filename="+fileName;
+								window.open(serverpath,'mywindow2');   
+							}	
+						}		
+					function printSmartCardReport(fileName,patientid){ 
+						if(patientid!=""){
+							var serverpath="#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos/?type_=45&amp;filename="+fileName;
+							window.open(serverpath,'mywindow2');   
+						}	
+					}
+					
+					function smartCardGenerate(patientId){
+						if(patientId != ''){
+							var file = "file:///"+document.getElementById('navigation:smartCardPath').value;
+							var MyPage = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=smartCardRPT.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;path="+file+"&amp;patientId="+patientId;
+						  	window.open(MyPage,'mywindow1'); 
+						  	
+						  	var file = "file:///"+document.getElementById('navigation:smartCardPath').value;
+						  	var MyPage2 = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=barCodeForMRD.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;path="+file+"&amp;patientId="+patientId;
+						  	window.open(MyPage2,'mywindow2'); 
+						}
+					}
+					
+					function enableTransactionButtons(){
+						var regId="navigation:register_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}Btn";
+						var saveId="navigation:register_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}EditBtn";
+						var renewId="navigation:reg_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}ReNew";
+						if(document.getElementById(regId)){
+							document.getElementById(regId).disabled=false;
+						}else if(document.getElementById(saveId)){
+							document.getElementById(saveId).disabled=false;
+						}else if(document.getElementById(renewId)){
+							document.getElementById(renewId).disabled=false;
+						}
+					}
+					function disableTransactionButtons(){
+						var regId="navigation:register_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}Btn";
+						var saveId="navigation:register_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}EditBtn";
+						var renewId="navigation:reg_#{patientRegistrationForm.registration.hospitalRegType.registration_Type.registrationCategory.lookupCode}ReNew";
+						if(document.getElementById(regId)){
+							document.getElementById(regId).disabled=true;
+						}else if(document.getElementById(saveId)){
+							document.getElementById(saveId).disabled=true;
+						}else if(document.getElementById(renewId)){
+							document.getElementById(renewId).disabled=true;
+						}
+					}
+						
+					function validateMobileNo(key)  
+			      	{    
+			      		 var mobileNo = document.getElementById("navigation:patMobileNo").value;
+			      		 var mobileCode = document.getElementById("navigation:mobileCode").value;
+			      		 if(mobileCode != ''){
+			      			mobileCode = mobileCode.substring(0,2);
+			      		 }
+			      		 if(mobileNo == ''){
+			      			document.getElementById("navigation:patMobileNo").value = mobileCode;
+			      			return;
+			      		 }
+			      		 var numbers = /^[0-9]+$/;
+			      		 if(!mobileNo.match(numbers)) {
+			      			var nonValid = mobileNo.match(/[^0-9]/gi);
+			      			var index = mobileNo.indexOf(nonValid[0]);
+			      			mobileNo = mobileNo.substring(0,index);
+			      			document.getElementById("navigation:patMobileNo").value = mobileNo;
+			      			if(mobileNo.substring(0,2) != mobileCode){
+				      			mobileNo = (key == 8) ? '' : mobileNo;
+				      			document.getElementById("navigation:patMobileNo").value = mobileCode + mobileNo;
+				      		}
+			      			document.navigation.patMobileNo.focus();
+			      		 }
+			      		 else{
+			      			 if(mobileNo.length==12){
+			      				 checkduplicate();
+			      			 }
+			      		 }
+			      		if(mobileNo.substring(0,2) != mobileCode){
+			      			mobileNo = (key == 8) ? '' : mobileNo;
+			      			document.getElementById("navigation:patMobileNo").value = mobileCode + mobileNo;
+			      		}
+			      	} 
+					
+					
+					
+					function validateWhatsAppNo(key)  
+			      	{    
+			      		 var mobileNo = document.getElementById("navigation:patWhatsAppNo").value;
+			      		/*  var mobileCode = document.getElementById("navigation:mobileCode").value;
+			      		 if(mobileCode != ''){
+			      			mobileCode = mobileCode.substring(0,2);
+			      		 } */
+			      		/*  if(mobileNo == ''){
+			      			document.getElementById("navigation:patWhatsAppNo").value = mobileCode;
+			      			return;
+			      		 } */
+			      		 var numbers = /^[0-9]+$/;
+			      		 if(!mobileNo.match(numbers)) {
+			      			var nonValid = mobileNo.match(/[^0-9]/gi);
+			      			var index = mobileNo.indexOf(nonValid[0]);
+			      			mobileNo = mobileNo.substring(0,index);
+			      			document.getElementById("navigation:patWhatsAppNo").value = mobileNo;
+			      			/* if(mobileNo.substring(0,2) != mobileCode){
+				      			mobileNo = (key == 8) ? '' : mobileNo;
+				      			document.getElementById("navigation:patWhatsAppNo").value = mobileCode + mobileNo;
+				      		} */
+			      			document.navigation.patWhatsAppNo.focus();
+			      		 }
+			      		 else{
+			      			 if(mobileNo.length==12){
+			      				 checkduplicate();
+			      			 }
+			      		 }
+			      		/* if(mobileNo.substring(0,2) != mobileCode){
+			      			mobileNo = (key == 8) ? '' : mobileNo;
+			      			document.getElementById("navigation:patWhatsAppNo").value = mobileCode + mobileNo;
+			      		} */
+			      	} 
+					
+					function focusHtmlElement(id){
+						document.getElementById(id).focus();
+					}
+					
+					function focusMobile(){
+						document.navigation.patMobileNo.focus();
+					}
+			      	function RemoveMobileNo(){
+			      		if(document.getElementById("regidd").value!=7000){
+			      			document.getElementById("navigation:patMobileNo").value=91;
+			      		}
+			      	}
+			      	
+	    			function validateMrn()  
+	    			{    
+	    				 var href= document.getElementById("navigation:patMobileNo").value;
+						 var numbers = /[0-9]+$/;
+						 if(!href.match(numbers)) {
+							document.navigation.patMobileNo.focus();
+							return false;
+						 }
+						
+	    			}  
+	    	
+					$(function(){
+					$("#ssnNo").keyup(function(){
+					var $this = $(this);
+					if ((($this.val().length+1) % 5)==0){
+					$this.val($this.val() + " ");
+					}
+					}); 
+					});
+					
+					function printInvoiceReport(invoiceId){
+		   	   			strDate = document.getElementById("opdBrowserEncounterForm:createdDate").innerHTML;
+						strId = document.getElementById("opdBrowserEncounterForm:createdId").innerHTML;
+							if(invoiceId != ''){
+								if(parseInt(invoiceId)>0){
+									//var extraParam="&amp;patientId="+patientId+"&amp;invoiceId="+invoiceId;
+								  	var MyPage13 = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=FinalBillForOP.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;invoiceId="+invoiceId+"&amp;isDraft=no&amp;isDuplicate=no&amp;isPackage=no&amp;preparedId="+strId+"&amp;preparedDate="+strDate;
+								 	var w =window.open(MyPage13);
+								  	w.focus();
+		                            w.print();
+		                            var MyPage12 = "#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=FinalBillForEncounter.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;invoiceId="+invoiceId+"&amp;isDraft=no&amp;isDuplicate=no&amp;isPackage=no&amp;preparedId="+strId+"&amp;preparedDate="+strDate;
+								 	var w =window.open(MyPage12);
+								  	w.focus();
+		                            w.print();
+								}  	
+							} 
+						}
+		function printBarCode(filename, enableAutoPrint, patientId, type){
+			if(enableAutoPrint == 'true'){
+				if(filename != ''){
+				 	var org = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/fos?type_=99&amp;filename="+filename;
+				 	window.open(org,'mywindow1');     
+				}  
+			}
+			else{
+				if(type == 'smartcard'){
+					printSmartCard(patientId);
+				}
+				else{
+					printLabel(patientId);
+				}
+			}
+			
+		}
+		function printLabel(patientId){
+			alert("label");
+			if(patientId != 0){
+				var file = "file:///"+document.getElementById('dupSmartCardForm:mrdbarcode').value;	
+				var MyPage2 = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=barCodeForMRD.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;path="+file+"&amp;patientId="+patientId;
+				window.open(MyPage2,'mywindow2+10');
+			}
+		}
+		function printSmartCard(patientId){
+			alert("Smartcard");
+			if(patientId != 0){
+				var file = "file:///"+document.getElementById('dupSmartCardForm:mrdbarcode').value;
+				var MyPage = "#{facesContext.externalContext.request.scheme}://#{facesContext.externalContext.request.serverName}:#{facesContext.externalContext.request.serverPort}#{facesContext.externalContext.requestContextPath}/birtreports?_reportFormat=pdf&amp;ReportName=smartcardRPT.rptdesign&amp;__id=parameterPage&amp;__masterpage=true&amp;path="+file+"&amp;patientId="+patientId;
+				window.open(MyPage,'mywindow1');
+			}
+		}
+			</script>
+			<!-- Modal Panel for Image Capture -->
+			<rich:modalPanel id="capturePhoto" width="685" height="466" style="background: #1468b3;">
+				<t:div id="capturePhotoId" style="width: 100%;height: 100%;
+					overflow:#{patientRegistrationForm.imageCapturePage eq '/pages/patient/registration/patientimagecaptureform' ? 'auto':''}" >
+					<ui:include src="#{patientRegistrationForm.imageCapturePage}.xhtml"></ui:include>
+				</t:div>
+			</rich:modalPanel>	
+			
+			<rich:modalPanel id="modalCountry" autosized="true" width="600"
+				zindex="2000">
+				<div class="modalPanel-container">
+					<div class="modal-theme-header">
+						<h:outputText styleClass="modal-head" value="#{msgs['country.add.title.header']}" />
+						<div style="float: right;padding: 8px;">
+							<span style="color: grey;font-size: 10px;cursor: pointer;" class="camLifeCustomFont lifeIcon-cross"
+								onclick="javascript:Richfaces.hideModalPanel('modalCountry');"></span>
+						</div>
+					</div>
+					<div class="spacer-10"/>
+					<div style="padding: 5px;">
+						<ui:include src="AddPatientCountry.xhtml" />
+					</div>
+				</div>
+			</rich:modalPanel>
+			<rich:modalPanel id="modalPatientHospitalReferral" height="300"
+				width="700" zindex="2000">
+				<ui:include src="AddPatientReferralHospital.xhtml" />
+			</rich:modalPanel>
+			<rich:modalPanel id="modalPatientDoctorReferral" height="200"
+				width="700" zindex="2000">
+				<ui:include src="AddPatientRefDoctorDet.xhtml" />
+			</rich:modalPanel>
+			<rich:modalPanel id="modalState" autosized="true" width="600"
+				zindex="2000">
+				<div class="modalPanel-container">
+					<div class="modal-theme-header">
+						<h:outputText styleClass="modal-head" value="#{msgs['reg.states.addState']}" />
+						<div style="float: right;padding: 8px;">
+							<span style="color: grey;font-size: 10px;cursor: pointer;" class="camLifeCustomFont lifeIcon-cross"
+								onclick="javascript:Richfaces.hideModalPanel('modalState');"></span>
+						</div>
+					</div>
+					<div class="spacer-10"/>
+					<div style="padding: 5px;">
+						<ui:include src="AddPatientState.xhtml" />
+					</div>
+				</div>
+			</rich:modalPanel>
+			<rich:modalPanel id="modalDistrict" height="200" width="600"
+				zindex="2000">
+				<ui:include src="AddPatientDistrict.xhtml" />
+			</rich:modalPanel>
+			<rich:modalPanel id="modalPanchayat" autosized="true" width="600"
+				zindex="2000">
+				<div class="modalPanel-container">
+					<div class="modal-theme-header">
+						<h:outputText styleClass="modal-head" value="Add Panchayat" />
+						<div style="float: right;padding: 8px;">
+							<span style="color: grey;font-size: 10px;cursor: pointer;" class="camLifeCustomFont lifeIcon-cross"
+								onclick="javascript:Richfaces.hideModalPanel('modalPanchayat');"></span>
+						</div>
+					</div>
+					<div class="spacer-10"/>
+					<div style="padding: 5px;">
+						<ui:include src="AddPatientPanchayat.xhtml" />
+					</div>
+				</div>
+			</rich:modalPanel>
+			<rich:modalPanel id="modalCity" autosized="true" width="600"
+				zindex="2000">
+				<div class="modalPanel-container">
+					<div class="modal-theme-header">
+						<h:outputText styleClass="modal-head" value="Add Post Office" />
+						<div style="float: right;padding: 8px;">
+							<span style="color: grey;font-size: 10px;cursor: pointer;" class="camLifeCustomFont lifeIcon-cross"
+								onclick="javascript:Richfaces.hideModalPanel('modalCity');"></span>
+						</div>
+					</div>
+					<div class="spacer-10"/>
+					<div style="padding: 5px;">
+						<ui:include src="AddPatientCity.xhtml" />
+					</div>
+				</div>
+			</rich:modalPanel>
+			<rich:modalPanel id="modalPrefix" autosized="true" width="700"
+				zindex="2000">
+				<div class="modalPanel-container">
+					<div class="modal-theme-header">
+						<h:outputText styleClass="modal-head" value="#{msgs['prefix']}" />
+						<div style="float: right;padding: 8px;">
+							<span style="color: grey;font-size: 10px;cursor: pointer;" class="camLifeCustomFont lifeIcon-cross"
+								onclick="javascript:Richfaces.hideModalPanel('modalPrefix');"></span>
+						</div>
+					</div>
+					<div class="spacer-10"/>
+					<div style="padding: 5px;">
+						<ui:include src="addnewprefixmaster.xhtml" />
+					</div>
+				</div>
+			</rich:modalPanel>
+		
+			
+				<ui:include src="patientemployeesearch.xhtml" />
+		 
+			<rich:modalPanel id="modalPrintReports" height="300" width="600"
+				top="250" zindex="2000">
+				<ui:include src="/pages/common/ReportOptions.xhtml">
+					<ui:param name="patientMrno"
+						value="#{patientRegistrationForm.patient.MRNO}" />
+						<ui:param name="patientName"
+						value="#{patientRegistrationForm.patient.patientName}" />
+						<ui:param name="prefix"
+						value="#{patientRegistrationForm.patient.patientPrefix.prefix}" />
+				</ui:include>
+			</rich:modalPanel>
+			<rich:modalPanel id="registrationa4jStatus" height="125" width="125">
+				<img src="images/emergency/progress.gif" />
+			</rich:modalPanel>
+			<rich:modalPanel id="modalFormResultPatientSearch" height="400"
+				width="900" top="50" autosized="true">
+				<c:if test="${patientRegistrationForm.isDirectRenew}">
+					<ui:include src="/pages/patient/search/PatientSearch.xhtml">
+						<ui:param name="modelPanelId" value="modalFormResultPatientSearch" />
+						<ui:param name="reRenderComponents"
+							value="registrationOutputPanel" />
+					</ui:include>
+				</c:if>
+			</rich:modalPanel>
+			
+<!-- 			<rich:modalPanel id="forapptime" >  -->
+<!-- 								<ui:include src="/pages/scheduler/RegistrationSreenAppointmentView.xhtml" /> -->
+<!-- 			</rich:modalPanel> -->
+		</f:view>
+		
+			<rich:modalPanel id="forCheckSchedule" style="overflow: scroll; overflow-y:scroll; " width="950"  height="500" 
+				zindex="2000" >
+				
+				<f:facet name="header">
+					<h:outputText value="OPDschedule" />
+				</f:facet>
+				<f:facet name="controls">
+					<a href="javascript:Richfaces.hideModalPanel('forCheckSchedule');"><img src="images/close.jpg" /></a>
+				</f:facet>
+				<ui:include src="/pages/scheduler/opdcalendarform.xhtml" />
+			</rich:modalPanel>  
+			
+			
+			
+			<rich:modalPanel id="forapptime" style="overflow: scroll; overflow-y:scroll; overflow-x:hidden;" width="925"  height="500" 
+				zindex="2000" >
+				
+				
+				<f:facet name="controls" style="margin-top: 20px;
+    margin-right: 16px;">
+					<a href="javascript:Richfaces.hideModalPanel('forapptime');" style="margin-top: 20px; 
+    margin-right: 16px;"><img
+						src="images/close.jpg"  style="margin-top: 20px; 
+    margin-right: 16px;"/></a>
+				</f:facet>
+				<ui:include src="/pages/scheduler/RegistrationSreenAppointmentView.xhtml" />
+			</rich:modalPanel>  
+			
+			
+			
+			
+			 <rich:modalPanel id="patientExistence" width="500" autosized="true"  top="200">
+			<f:facet name="header"> Patient</f:facet>
+			 <f:facet name="controls">
+					 <a href="javascript:Richfaces.hideModalPanel('patientExistence')">X</a>
+			  </f:facet>
+			  <h:form id="patientExistenceFormId">
+			  <a4j:outputPanel id="alertDuplicatPatient">
+			<h:dataTable width="100%" id="ExistingPatientDetailsTable"
+				  columnslength="0*" headerClass="tableHeaderLabel" cellpadding="10"
+				   cellspacing="10" border="0" var="pDetails" rowKeyVar="rowIndex"
+				  first="0" rows="9" value="#{patientRegistrationForm.patientCheck}">
+				 <rich:column>
+				   <f:facet name="header">
+					   <h:outputText value="MRN No" />
+				  </f:facet>
+				  <h:outputText value="#{pDetails[1]}" />
+			  </rich:column>
+			 <rich:column>
+				<f:facet name="header">
+					   <h:outputText value="Patient Name" />
+				  </f:facet>
+					<h:outputText value="#{pDetails[5]}.#{pDetails[2]}" />
+			  </rich:column>
+			<rich:column>
+				   <f:facet name="header">
+							  <h:outputText value="DOB" />
+						  </f:facet>
+							<h:outputText value="#{pDetails[3]}" >
+						  <f:convertDateTime pattern="dd/MM/yyyy" type="date" />
+					</h:outputText>
+			   </rich:column>
+			<rich:column>
+				   <f:facet name="header">
+						 <h:outputText value="AGE" />
+				   </f:facet>
+				<h:outputText value="#{pDetails[4]}" />
+			 </rich:column>
+			   <rich:column>
+				   <f:facet name="header">
+						 <h:outputText value="Country" />
+				   </f:facet>
+				  <h:outputText value="#{pDetails[6]}" />
+			</rich:column>
+		   <rich:column>
+				  <f:facet name="header">
+						 <h:outputText value="State" />
+					</f:facet>
+					<h:outputText value="#{pDetails[8]}" />
+				</rich:column>
+
+				<rich:column>
+				<f:facet name="header">
+				   <h:outputText value="Pin" />
+				  </f:facet>
+				 <h:outputText value="#{pDetails[9]}" />
+				</rich:column>
+				<rich:column>
+					<f:facet name="header">
+						   <h:outputText value="Mob No" />
+					</f:facet>
+					<h:outputText value="#{pDetails[7]}" />
+			   </rich:column>
+			   </h:dataTable>
+			   </a4j:outputPanel>
+		   <h:column>
+				 <h:outputText styleClass="regGridStyle"
+						value="Patient already registered do you want to continue?" />
+			</h:column>
+			
+				  <h:column>
+			   <a4j:commandButton id="yesId" ajaxSingle="true"
+				action="#{patientRegistrationForm.registrationContinue}"
+				oncomplete="javascript:Richfaces.hideModalPanel('patientExistence')"
+		   reRender="patRegDOB,lastName,firstName,age,ageUnit,middleName"
+			value="Yes" status="ajaxProcessIcon">
+			</a4j:commandButton>
+		   </h:column>
+		  <h:column>
+		   <a4j:commandButton id="noId" ajaxSingle="true"
+				  action="#{patientRegistrationForm.registrationNotRequired}"
+				   oncomplete="javascript:Richfaces.hideModalPanel('patientExistence')"
+				 reRender="patRegDOB,lastName,firstName,age,ageUnit,middleName"
+				  value="NO" status="ajaxProcessIcon">
+			 </a4j:commandButton>
+		  </h:column>
+		  </h:form>
+		 </rich:modalPanel>
+		 
+		 <rich:modalPanel id="printInvoiceModal" autosized="true" z-index="2000" style="margin-top: -10px;">
+			<h:form id="printInvoiceModalId">
+				<t:saveState value="#{patientRegistrationForm.invoiceBillFileName}"/>
+				<t:saveState value="#{patientRegistrationForm.reload}" />
+				<c:if test="#{patientRegistrationForm.reload eq true}">
+					<iframe id="printInvoiceFrameId" name="printInvoiceFrameId" src="/life#{patientRegistrationForm.invoiceBillFileName}" onload="isLoaded()" style="visibility: hidden"></iframe> 
+				</c:if>
+				<c:if test="#{empty patientRegistrationForm.invoiceBillFileName}">
+					<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;border:1px solid grey;">
+						<h1>No Records Found</h1>
+					</div>
+			</c:if>
+			</h:form>
+		</rich:modalPanel>
+		<h:inputHidden value="#{patientRegistrationForm.patient.registrationCategoryId}" id="regidd" />
+		<t:div id="coverWindow" style="display:#{(patientRegistrationForm.patientDuplicateList ne null)and(not empty patientRegistrationForm.patientDuplicateList)?'block':'none'};
+				width: 100%; height: 100%;background: #d0d0d0;opacity: 0.5;position:fixed;top: 0;z-index: 100">
+		</t:div>
+		<t:div id="duplicateListId" 
+        	style="display:#{(patientRegistrationForm.patientDuplicateList ne null)and(not empty patientRegistrationForm.patientDuplicateList)?'block':'none'};
+        	background: white;width: 650px;height: 370px;position:fixed;top: 100px;right: 380px;padding: 10px;
+			box-shadow: 1px 1px 30px grey;border: solid thin #dedede;z-index: 100">
+			<div style="background: #dedede;width: 100%;height: 37px;padding: 5px">
+				<h style="float:left;font-size: 18px;">DUPLICATE PATIENTS</h>
+			</div>
+			<div style="height: 220px;width: 100%;overflow: auto;border: solid thin silver">
+				<rich:dataTable id="duplicateTable"
+					width="100%" value="#{patientRegistrationForm.patientDuplicateList}"  var="dupliacteData" >
+					<f:facet name="header">
+						<rich:columnGroup>
+							<rich:column rowspan="2">
+								<h:outputText value="MRNO" style="color: white" />
+							</rich:column>
+							<rich:column rowspan="2" >
+								<h:outputText value="Name" style="color: white" />
+							</rich:column>
+							<rich:column rowspan="2" >
+								<h:outputText value="Gender" style="color: white"/>
+							</rich:column>
+							<rich:column rowspan="2" >
+								<h:outputText value="Patient Type" style="color: white"/>
+							</rich:column>
+						</rich:columnGroup>
+					</f:facet>
+					<rich:column >
+						<h:outputText value="#{dupliacteData[0]}"/>
+					</rich:column>
+					<rich:column>
+						<h:outputText value="#{dupliacteData[1]} #{dupliacteData[2]}"/>
+					</rich:column>
+					<rich:column >
+						<h:outputText value="#{dupliacteData[3]}"/>						
+					</rich:column>
+					<rich:column >
+						<h:outputText value="#{dupliacteData[5]}"/>						
+					</rich:column>	
+				</rich:dataTable>
+			</div>
+			<div style="height: 90px;width: 100%;text-align: center;border: solid thin silver">
+				<br/>
+				<h:outputText>
+					<font class="themeFont">" #{patientRegistrationForm.patient.mobileNo} " Already Exist !</font>
+				</h:outputText>
+				<br/>
+				<h:outputText styleClass="themeFont" value="Do you want to continue?"/>
+				<br/>
+				<div style="padding: 0px 5px 0px 0px">
+					<h:form>
+					<a4j:commandButton value="No" style="float:right;" 
+						action="#{patientRegistrationForm.closeDuplicateList}" reRender="duplicateListId,coverWindow">
+						<a4j:support event="oncomplete" oncomplete="RemoveMobileNo()" /> 
+					</a4j:commandButton>
+					<a4j:commandButton value="Yes" style="float:right;" 
+						action="#{patientRegistrationForm.closeDuplicateList}" reRender="duplicateListId,coverWindow">
+					</a4j:commandButton>
+					</h:form>
+				</div>
+			</div>
+		</t:div>
+		<h:inputHidden value="#{patientRegistrationForm.lang}" id="lang" />
+	
+	</ui:define>
+</ui:composition>

@@ -1,0 +1,29 @@
+{
+  "name": "hdsp-vendor-portal-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev":   "next dev -p 4001",
+    "build": "next build",
+    "start": "next start -p 4001"
+  },
+  "dependencies": {
+    "@emotion/cache":    "^11.11.0",
+    "@emotion/react":    "^11.11.0",
+    "@emotion/styled":   "^11.11.0",
+    "@mui/icons-material": "^5.15.0",
+    "@mui/material":     "^5.15.0",
+    "@tanstack/react-query": "^5.17.0",
+    "axios":             "^1.6.0",
+    "date-fns":          "^3.0.0",
+    "notistack":         "^3.0.1",
+    "next":              "14.0.4",
+    "react":             "^18.0.0",
+    "react-dom":         "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/node":       "^20.0.0",
+    "@types/react":      "^18.0.0",
+    "typescript":        "^5.1.3"
+  }
+}

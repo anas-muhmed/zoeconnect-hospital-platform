@@ -1,0 +1,135 @@
+# Phase 12 (Hybrid Architecture roadmap, Task 12.4 — "Self-hosted package pipeline").
+#
+# NOT a replacement for the PM2-based runbook in DEPLOY.md (which stays
+# documented as the manual fallback for at least one release cycle, per the
+# roadmap's own rollback strategy for this phase) -- this is a new, second
+# self-hosted deployment path: pull versioned images from GHCR instead of
+# `git clone` + `npm run build` on the target server. Images referenced here
+# are the exact same ones `build-images.yml` publishes to GHCR on a tagged
+# release (Task 12.2) -- no separate self-hosted build.
+#
+# Single-combined-process by default (PROCESS_ROLE unset -> 'all'), matching
+# today's self-hosted PM2 topology (2 cluster instances of one combined
+# process) rather than Phase 9's cloud API/worker split -- a hospital's
+# on-prem box is not being asked to run a second container just to separate
+# cron from HTTP traffic. An operator who wants the split can add a second
+# `backend` service with `PROCESS_ROLE=worker` and no `ports:` -- not done
+# by default here to keep the base topology identical to what DEPLOY.md
+# already describes.
+#
+# Oracle Instant Client: bundled in the `connector` image only (Phase 9
+# decision, unchanged) -- for a self-hosted install that talks to Oracle
+# DIRECTLY (ORACLE_TRANSPORT=direct, the self-hosted default), the `backend`
+# image does NOT bundle Instant Client (see backend.Dockerfile's own note),
+# so direct-Oracle self-hosted installs still need Instant Client on the
+# HOST if running the backend outside Docker, OR must mount it into the
+# container -- see infrastructure/installer/README.md for the two supported
+# variants (`direct` vs `connector`-relay). This compose file's `connector`
+# service is commented out by default; uncomment it only for the
+# `cloud_relay`-via-local-connector variant, which is unusual for a
+# single-hospital self-hosted install but supported for consistency with
+# the platform's "same codebase, N deployment topologies" design (Section 9
+# of the spec).
+
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - hdsp_postgres_data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5432:5432'   # bound to localhost only -- not exposed beyond the host
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - hdsp_redis_data:/data
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/hdsp-backend:${HDSP_VERSION}
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      DEPLOYMENT_MODE: cloud
+    ports:
+      - '3001:3001'
+    # ROOT-CAUSE FIX (2026-08, same incident as the root docker-compose.yml
+    # -- "Uploaded media disappears after deployment"): this file pulls the
+    # same ghcr.io/.../hdsp-backend image, built by docker/backend.
+    # Dockerfile, whose runtime stage sets `WORKDIR /repo/backend`. Every
+    # path the app resolves via `process.cwd()` (LocalStorageProvider's
+    # uploads root, main.ts's upload dirs, license.service.ts's keys path,
+    # logger.util.ts's default log dir) is therefore under
+    # `/repo/backend/<dir>`, never `/app/backend/<dir>`. The old mount
+    # targets here were never read from -- uploads and keys landed in the
+    # container's ephemeral writable layer and were lost on every image
+    # update. `hdsp_logs` added for parity with the root compose file's
+    # fix (was previously unmounted entirely in this file).
+    volumes:
+      - hdsp_uploads:/repo/backend/uploads
+      - hdsp_keys:/repo/backend/keys
+      - hdsp_logs:/repo/backend/logs
+      # Backup persistence follow-up (2026-08 audit): backup.config.ts's
+      # default local backup directory (/var/lib/zoeconnect/backups on
+      # Linux) was never backed by a volume in this file either -- same
+      # class of bug, for backup archives. LocalBackupStorageProvider now
+      # also fails startup if this ever regresses.
+      - hdsp_backups:/var/lib/zoeconnect/backups
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3001/api/v1/health/live', r => process.exit(r.statusCode===200?0:1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/hdsp-frontend:${HDSP_VERSION}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    env_file: .env
+    ports:
+      - '3000:3000'
+
+  # Uncomment for the connector-relay Oracle variant (unusual for
+  # single-hospital self-hosted, supported for topology consistency —
+  # see this file's header note).
+  # connector:
+  #   image: ghcr.io/${GHCR_OWNER}/hdsp-connector:${HDSP_VERSION}
+  #   restart: unless-stopped
+  #   depends_on:
+  #     redis: { condition: service_healthy }
+  #   env_file: .env
+  #   environment:
+  #     REDIS_HOST: redis
+
+volumes:
+  hdsp_postgres_data:
+  hdsp_redis_data:
+  hdsp_uploads:
+  hdsp_keys:
+  hdsp_logs:
+  hdsp_backups:

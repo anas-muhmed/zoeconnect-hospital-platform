@@ -1,0 +1,112 @@
+<!--
+  PATCH: registrationFlowForm.xhtml
+  Add these two blocks exactly as shown.
+
+  Block A goes in <ui:define name="headerInclude"> — loads the bridge script.
+  Block B goes just before </ui:define> of the "body" section — adds the widget panel.
+-->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BLOCK A — Add inside <ui:define name="headerInclude">
+     after the existing <ui:include src="...themeoverrides.xhtml" />
+     ═══════════════════════════════════════════════════════════════ -->
+<ui:define name="headerInclude">
+    <ui:include src="/pages/common/themeoverrides.xhtml" />
+
+    <!-- HDSP Widget bridge script -->
+    <h:outputScript>
+    //<![CDATA[
+    /**
+     * notifyHdspWidget — call this from the patient registration form's
+     * oncomplete after a successful save.
+     */
+    function notifyHdspWidget(hisPatientId, mrn, patientName, visitId) {
+        var frame = document.getElementById('hdspTokenWidget');
+        if (!frame || !frame.contentWindow) return;
+        frame.contentWindow.postMessage(
+            {
+                type:         'HIS_PATIENT_REGISTERED',
+                hisPatientId: hisPatientId || '',
+                mrn:          mrn          || '',
+                patientName:  patientName  || '',
+                visitId:      visitId      || ''
+            },
+            window.location.origin
+        );
+    }
+
+    /* Persist reservation across page navigation.
+       When the receptionist navigates from this hub to the registration
+       form, the iframe reloads. We store the selected token in
+       sessionStorage so the registration form page can pre-select it. */
+    window.addEventListener('message', function(evt) {
+        if (evt.origin !== window.location.origin) return;
+        var d = evt.data;
+        if (d && d.type === 'HDSP_TOKEN_RESERVED') {
+            sessionStorage.setItem('hdsp_reserved_token', d.tokenNumber);
+            sessionStorage.setItem('hdsp_reservation_id', d.reservationId);
+        }
+        if (d && d.type === 'HDSP_TOKEN_RELEASED') {
+            sessionStorage.removeItem('hdsp_reserved_token');
+            sessionStorage.removeItem('hdsp_reservation_id');
+        }
+    });
+    //]]>
+    </h:outputScript>
+
+    <!-- HDSP widget panel styles -->
+    <style>
+    #hdspWidgetPanel {
+        position: fixed;
+        right: 0;
+        top: 0;
+        width: 340px;
+        height: 100vh;
+        z-index: 1000;
+        background: #fff;
+        border-left: 1px solid #e2e8f0;
+        box-shadow: -4px 0 20px rgba(0,0,0,.08);
+        display: flex;
+        flex-direction: column;
+    }
+    #hdspWidgetPanel .hdsp-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: #1468b3;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    #hdspWidgetPanel iframe {
+        flex: 1;
+        border: none;
+        width: 100%;
+    }
+    /* Push main content left so it is not hidden under the panel */
+    body { margin-right: 340px !important; }
+    </style>
+</ui:define>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BLOCK B — Add at the very end of <ui:define name="body">
+     just before </ui:define> and </f:view>
+     ═══════════════════════════════════════════════════════════════ -->
+
+<!-- HDSP Token Queue Widget panel -->
+<div id="hdspWidgetPanel">
+    <div class="hdsp-panel-header">
+        <span>&#9679; Token Queue</span>
+        <span style="font-size:11px;font-weight:400;opacity:.8;">Select a token before registering</span>
+    </div>
+    <iframe
+        id="hdspTokenWidget"
+        src="/hdsp/widget/registration?branchId=#{hdspSessionBean.branchId}&amp;token=#{hdspSessionBean.accessToken}"
+        title="HDSP Token Queue"
+        sandbox="allow-scripts allow-same-origin allow-forms"
+        loading="lazy"
+    />
+</div>

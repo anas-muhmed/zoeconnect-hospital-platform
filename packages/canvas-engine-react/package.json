@@ -1,0 +1,32 @@
+{
+  "name": "@hdsp/canvas-engine-react",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Thin React binding layer over @hdsp/canvas-engine (ADR-004). React orchestrates chrome only; the engine itself is framework-agnostic. Milestone 3 (Basic Components) adds Wave 1 Designer components, a palette, and the Inspector Generator, all registered via @hdsp/form-schema's ComponentRegistry (ADR-005).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "jest",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hdsp/canvas-engine": "file:../canvas-engine",
+    "@hdsp/form-schema": "file:../form-schema"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.5"
+  }
+}

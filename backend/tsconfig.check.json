@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/modules/organization-branch/**/*.ts",
+    "src/modules/platform/tenant-provisioning/**/*.ts",
+    "src/database/data-source.ts"
+  ]
+}

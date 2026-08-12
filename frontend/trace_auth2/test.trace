@@ -1,0 +1,45 @@
+{"version":8,"type":"context-options","origin":"testRunner","browserName":"","playwrightVersion":"1.62.0","options":{},"platform":"win32","wallTime":1785169388980,"monotonicTime":39895.692,"sdkLanguage":"javascript","testTimeout":60000}
+{"type":"before","callId":"hook@1","stepId":"hook@1","startTime":39966.538,"class":"Test","method":"hook","title":"Before Hooks","params":{},"stack":[]}
+{"type":"before","callId":"fixture@32","stepId":"fixture@32","parentId":"hook@1","startTime":40008.22,"class":"Test","method":"fixture","title":"Fixture \"browser\"","params":{},"stack":[]}
+{"type":"before","callId":"pw:api@33","stepId":"pw:api@33","parentId":"fixture@32","startTime":40015.615,"class":"Test","method":"pw:api","title":"Launch browser","params":{"handleSIGINT":"false","tracesDir":"D:\\HDSP_HYBRID\\frontend\\test-results\\.playwright-artifacts-1\\traces","artifactsDir":"D:\\HDSP_HYBRID\\frontend\\test-results\\.playwright-artifacts-1","headless":"true","ignoreDefaultArgs":"undefined","ignoreAllDefaultArgs":"false","env":"undefined"},"stack":[]}
+{"type":"after","callId":"pw:api@33","endTime":40545.542,"annotations":[]}
+{"type":"after","callId":"fixture@32","endTime":40545.881,"annotations":[]}
+{"type":"before","callId":"fixture@36","stepId":"fixture@36","parentId":"hook@1","startTime":40549.212,"class":"Test","method":"fixture","title":"Fixture \"context\"","params":{},"stack":[]}
+{"type":"before","callId":"pw:api@37","stepId":"pw:api@37","parentId":"fixture@36","startTime":40553.42,"class":"Test","method":"pw:api","title":"Create context","params":{"selectorEngines":"[]","testIdAttributeName":"data-testid","acceptDownloads":"accept","bypassCSP":"false","colorScheme":"light","hasTouch":"false","ignoreHTTPSErrors":"false","isMobile":"false","javaScriptEnabled":"true","locale":"en-US","offline":"false","viewport":"Object","baseURL":"http://localhost:3000","serviceWorkers":"allow","noDefaultViewport":"false","extraHTTPHeaders":"undefined","storageState":"undefined","reducedMotion":"undefined","forcedColors":"undefined","contrast":"undefined","clientCertificates":"undefined"},"stack":[]}
+{"type":"after","callId":"pw:api@37","endTime":40571.961,"annotations":[]}
+{"type":"after","callId":"fixture@36","endTime":40590.447,"annotations":[]}
+{"type":"before","callId":"fixture@38","stepId":"fixture@38","parentId":"hook@1","startTime":40591.507,"class":"Test","method":"fixture","title":"Fixture \"page\"","params":{},"stack":[]}
+{"type":"before","callId":"pw:api@39","stepId":"pw:api@39","parentId":"fixture@38","startTime":40596.585,"class":"Test","method":"pw:api","title":"Create page","params":{},"stack":[]}
+{"type":"after","callId":"pw:api@39","endTime":41504.036,"annotations":[]}
+{"type":"after","callId":"fixture@38","endTime":41504.246,"annotations":[]}
+{"type":"after","callId":"hook@1","endTime":41504.423,"annotations":[]}
+{"type":"before","callId":"pw:api@40","stepId":"pw:api@40","startTime":41509.57,"class":"Test","method":"pw:api","title":"Navigate to \"/login\"","params":{"url":"/login","waitUntil":"load"},"stack":[{"file":"D:\\HDSP_HYBRID\\frontend\\tests\\auth.setup.ts","line":17,"column":18}]}
+{"type":"after","callId":"pw:api@40","endTime":44710.204,"annotations":[]}
+{"type":"before","callId":"pw:api@41","stepId":"pw:api@41","startTime":44724.77,"class":"Test","method":"pw:api","title":"Fill \"reporter\" locator('input[name=\"username\"]')","params":{"selector":"input[name=\"username\"]","value":"reporter"},"stack":[{"file":"D:\\HDSP_HYBRID\\frontend\\tests\\auth.setup.ts","line":19,"column":16}]}
+{"type":"after","callId":"pw:api@41","endTime":44830.663,"annotations":[]}
+{"type":"before","callId":"pw:api@42","stepId":"pw:api@42","startTime":44834.539,"class":"Test","method":"pw:api","title":"Fill \"password\" locator('input[name=\"password\"]')","params":{"selector":"input[name=\"password\"]","value":"password"},"stack":[{"file":"D:\\HDSP_HYBRID\\frontend\\tests\\auth.setup.ts","line":20,"column":16}]}
+{"type":"after","callId":"pw:api@42","endTime":44898.037,"annotations":[]}
+{"type":"before","callId":"pw:api@43","stepId":"pw:api@43","startTime":44902.555,"class":"Test","method":"pw:api","title":"Click locator('button[type=\"submit\"]')","params":{"selector":"button[type=\"submit\"]"},"stack":[{"file":"D:\\HDSP_HYBRID\\frontend\\tests\\auth.setup.ts","line":26,"column":16}]}
+{"type":"after","callId":"pw:api@43","endTime":45133.03,"annotations":[]}
+{"type":"before","callId":"pw:api@44","stepId":"pw:api@44","startTime":45141.022,"class":"Test","method":"pw:api","title":"Wait for navigation","params":{"waitId":"3e4edf7e9787e47d9fa1421f12b23b54","phase":"before","event":""},"stack":[{"file":"D:\\HDSP_HYBRID\\frontend\\tests\\auth.setup.ts","line":29,"column":16}]}
+{"type":"error","message":"\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m","stack":[]}
+{"type":"before","callId":"hook@45","stepId":"hook@45","startTime":100548.162,"class":"Test","method":"hook","title":"After Hooks","params":{},"stack":[]}
+{"type":"before","callId":"fixture@46","stepId":"fixture@46","parentId":"hook@45","startTime":100655.453,"class":"Test","method":"fixture","title":"Fixture \"page\"","params":{},"stack":[]}
+{"type":"after","callId":"fixture@46","endTime":100656.101,"annotations":[]}
+{"type":"before","callId":"fixture@47","stepId":"fixture@47","parentId":"hook@45","startTime":100657.009,"class":"Test","method":"fixture","title":"Fixture \"context\"","params":{},"stack":[]}
+{"type":"before","callId":"pw:api@48","stepId":"pw:api@48","parentId":"fixture@47","startTime":101128.575,"class":"Test","method":"pw:api","title":"Close context","params":{"reason":"Test timeout of 60000ms exceeded."},"stack":[]}
+{"type":"after","callId":"pw:api@44","endTime":101168.527,"annotations":[],"error":{"name":"","message":"Error: page.waitForURL: Test timeout of 60000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/*dashboard*\" until \"load\"\n============================================================","stack":"Error: page.waitForURL: Test timeout of 60000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/*dashboard*\" until \"load\"\n============================================================\n    at D:\\HDSP_HYBRID\\frontend\\tests\\auth.setup.ts:29:16"}}
+{"type":"error","message":"Error: page.waitForURL: Test timeout of 60000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/*dashboard*\" until \"load\"\n============================================================","stack":[{"file":"D:\\HDSP_HYBRID\\frontend\\tests\\auth.setup.ts","line":29,"column":16}]}
+{"type":"after","callId":"pw:api@48","endTime":101288.675,"annotations":[]}
+{"type":"after","callId":"fixture@47","endTime":101288.911,"annotations":[]}
+{"type":"before","callId":"attach@84ed65381c3e92139f12dae0b4b6f548","stepId":"attach@84ed65381c3e92139f12dae0b4b6f548","startTime":101308.774,"class":"Test","method":"test.attach","title":"Attach \"error-context\"","params":{},"stack":[]}
+{"type":"after","callId":"attach@84ed65381c3e92139f12dae0b4b6f548","endTime":101308.803,"attachments":[{"name":"error-context","contentType":"text/markdown","sha1":"3af6f693d9222dcdb7f9b3184d20ee3e6a65edcb"}]}
+{"type":"before","callId":"fixture@57","stepId":"fixture@57","parentId":"hook@45","startTime":101310.963,"class":"Test","method":"fixture","title":"Fixture \"baseURL\"","params":{},"stack":[{"file":"project#setup","line":1,"column":1}],"group":"configuration"}
+{"type":"after","callId":"fixture@57","endTime":101311.023,"annotations":[]}
+{"type":"after","callId":"hook@45","endTime":101337.413,"attachments":[{"name":"screenshot","contentType":"image/png","sha1":"a769d39cc01484193b07116d9d4777224e2feaca"}],"annotations":[]}
+{"type":"before","callId":"hook@79","stepId":"hook@79","startTime":101338.441,"class":"Test","method":"hook","title":"Worker Cleanup","params":{},"stack":[]}
+{"type":"before","callId":"fixture@84","stepId":"fixture@84","parentId":"hook@79","startTime":101343.755,"class":"Test","method":"fixture","title":"Fixture \"browser\"","params":{},"stack":[]}
+{"type":"after","callId":"fixture@84","endTime":106316.524,"annotations":[]}
+{"type":"before","callId":"fixture@89","stepId":"fixture@89","parentId":"hook@79","startTime":106318.441,"class":"Test","method":"fixture","title":"Fixture \"screenshot\"","params":{},"stack":[{"file":"project#setup","line":1,"column":1}],"group":"configuration"}
+{"type":"after","callId":"fixture@89","endTime":106318.471,"annotations":[]}
+{"type":"after","callId":"hook@79","endTime":106320.052,"annotations":[]}

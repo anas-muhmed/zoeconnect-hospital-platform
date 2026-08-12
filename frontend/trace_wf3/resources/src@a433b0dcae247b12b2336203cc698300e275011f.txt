@@ -1,0 +1,51 @@
+import { test, expect } from '@playwright/test';
+import path from 'path';
+
+import fs from 'fs';
+
+test.describe('Incident Management Workflow', () => {
+
+  // Reporter persona
+  test.use({ storageState: path.join(__dirname, '../../.auth/reporter.json') });
+
+  test.beforeEach(async ({ page }) => {
+    const sessionData = fs.readFileSync(path.join(__dirname, '../../.auth/reporter-session.json'), 'utf8');
+    const sessionObj = JSON.parse(sessionData);
+    await page.addInitScript((storage: Record<string, string>) => {
+      for (const [key, value] of Object.entries(storage)) {
+        window.sessionStorage.setItem(key, value);
+      }
+    }, sessionObj);
+  });
+
+  test('Reporter can log a new incident', async ({ page }) => {
+    // 1. Navigate to Incident reporting form
+    await page.goto('/incident/new');
+    
+    // 2. Fill out the form
+    await page.fill('input[name="department"]', 'Emergency Department');
+    
+    // MUI Selects (click the select box, then click the option in the listbox)
+    await page.locator('div[id="mui-component-select-categoryId"]').click();
+    await page.getByRole('option', { name: 'Patient Safety' }).click();
+
+    // Type becomes enabled after Category is selected
+    await page.locator('div[id="mui-component-select-typeId"]').click();
+    await page.getByRole('option', { name: 'Fall' }).click();
+
+    await page.locator('div[id="mui-component-select-severityCode"]').click();
+    await page.getByRole('option', { name: 'High' }).click();
+
+    await page.fill('textarea[name="description"]', 'Patient fell out of bed while reaching for water.');
+
+    // 3. Submit
+    await page.getByRole('button', { name: 'Submit Incident' }).click();
+
+    // 4. Verify successful redirect and creation
+    await expect(page).toHaveURL(/.*\/incident\/[a-f0-9-]{36}/);
+    await expect(page.locator('text=Patient fell out of bed')).toBeVisible();
+    await expect(page.locator('text=Patient Safety')).toBeVisible();
+    await expect(page.locator('text=Fall')).toBeVisible();
+    await expect(page.locator('text=High')).toBeVisible();
+  });
+});

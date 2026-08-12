@@ -1,0 +1,269 @@
+import {
+  Controller, Get, Post, Delete, Patch,
+  Param, Body, Query, Req, Res, Sse,
+  UseGuards, UseInterceptors, HttpCode, HttpStatus,
+  MessageEvent,
+} from '@nestjs/common';
+import { Observable, interval, switchMap, map, startWith } from 'rxjs';
+import { Request, Response } from 'express';
+
+import { JwtAuthGuard }        from '../../../common/guards/jwt-auth.guard';
+import { PermissionsGuard }    from '../../../common/guards/permissions.guard';
+import { ReservationScopeGuard } from '../../../common/guards/reservation-scope.guard';
+import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
+import { CurrentUser }        from '../../../common/decorators/current-user.decorator';
+import { TenantContextInterceptor } from '../../platform/tenant/context/tenant-context.interceptor';
+
+import { RegistrationService } from './registration.service';
+
+import { ReserveTokenDto, HeartbeatDto, ReleaseTokenDto, SupervisorResetDto } from './dto/reserve-token.dto';
+import { MapPatientDto, MapVisitDto } from './dto/map-patient.dto';
+
+/**
+ * RegistrationController
+ *
+ * Base path: /token/registration
+ *
+ * All endpoints require JWT authentication.
+ * Action endpoints additionally require TOKEN:REGISTRATION:ACTION permission.
+ * Supervisor endpoints require TOKEN:REGISTRATION:SUPERVISOR_RESET.
+ */
+@Controller('token/registration')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+export class RegistrationController {
+  constructor(private readonly svc: RegistrationService) {}
+
+  // ── Queue & token state ───────────────────────────────────────────────────
+
+  /**
+   * GET /token/registration/queue?branchId=BRANCH_001&locationId=...
+   * Returns tokens visible to the widget (WAITING + CALLED, excluding other users' active reservations).
+   *
+   * `locationId` scopes the queue to one TokenLocation (workstation-based
+   * popup integration). For a workstation-session caller, branchId/
+   * locationId are ALWAYS taken from the token's own claims, never from
+   * the query string -- a workstation token can only ever see its own
+   * configured queue context, regardless of what a client sends.
+   */
+  @Get('queue')
+  @RequirePermissions('TOKEN:REGISTRATION:VIEW')
+  @UseInterceptors(TenantContextInterceptor)
+  async getQueue(
+    @Query('branchId') branchId: string,
+    @Query('locationId') locationId: string | undefined,
+    @CurrentUser() user: any,
+  ) {
+    if (user.isWorkstationToken) {
+      return this.svc.getQueue(user.workstation.branchId, user.username ?? user.id, user.workstation.locationId);
+    }
+    return this.svc.getQueue(branchId, user.username ?? user.id, locationId);
+  }
+
+  /**
+   * GET /token/registration/queue/stream?branchId=BRANCH_001&locationId=...
+   * SSE stream -- emits queue snapshot every 5 seconds.
+   * Widget falls back to polling /queue if this connection drops.
+   */
+  @Sse('queue/stream')
+  @RequirePermissions('TOKEN:REGISTRATION:VIEW')
+  queueStream(
+    @Query('branchId') branchId: string,
+    @Query('locationId') locationId: string | undefined,
+    @CurrentUser() user: any,
+  ): Observable<MessageEvent> {
+    const userId = user.username ?? user.id;
+    const effectiveBranchId  = user.isWorkstationToken ? user.workstation.branchId   : branchId;
+    const effectiveLocationId = user.isWorkstationToken ? user.workstation.locationId : locationId;
+
+    return interval(5000).pipe(
+      startWith(0),
+      switchMap(() => this.svc.getQueue(effectiveBranchId, userId, effectiveLocationId)),
+      map((tokens) => ({
+        data: JSON.stringify({ type: 'QUEUE_UPDATE', tokens, ts: Date.now() }),
+      })),
+    );
+  }
+
+  /**
+   * GET /token/registration/:tokenNumber/state
+   * Returns token + active reservation + patient mapping for the widget confirm dialog.
+   */
+  @Get(':tokenNumber/state')
+  @RequirePermissions('TOKEN:REGISTRATION:VIEW')
+  @UseInterceptors(TenantContextInterceptor)
+  getTokenState(@Param('tokenNumber') tokenNumber: string) {
+    return this.svc.getTokenState(tokenNumber);
+  }
+
+  /**
+   * GET /token/registration/mapping/by-mrn/:mrn
+   * Resolves the current token/registration mapping for a patient by MRN.
+   * For downstream modules (Pharmacy, Loyalty, Feedback, Dynamic Forms, ...)
+   * that only have the MRN and need to find the token context -- e.g.
+   * Pharmacy scanning a token to look up the patient/visit before
+   * dispensing. Placed under a fixed 'mapping/' prefix (not
+   * ':tokenNumber/...') so it can't collide with the tokenNumber-scoped
+   * routes above.
+   */
+  @Get('mapping/by-mrn/:mrn')
+  @RequirePermissions('TOKEN:REGISTRATION:VIEW')
+  @UseInterceptors(TenantContextInterceptor)
+  getMappingByMrn(@Param('mrn') mrn: string) {
+    return this.svc.getMappingByMrn(mrn);
+  }
+
+  // ── Reservation ───────────────────────────────────────────────────────────
+
+  /**
+   * POST /token/registration/:tokenNumber/reserve
+   * Body: { reservationId: "<uuid v4 generated by widget on Confirm click>" }
+   *
+   * Idempotent within the same reservationId -- duplicate POST after network
+   * retry is safe because the partial unique index prevents double-locking.
+   */
+  @Post(':tokenNumber/reserve')
+  @HttpCode(HttpStatus.CREATED)
+  @RequirePermissions('TOKEN:REGISTRATION:ACTION')
+  @UseInterceptors(TenantContextInterceptor)
+  reserve(
+    @Param('tokenNumber') tokenNumber: string,
+    @Body() dto: ReserveTokenDto,
+    @CurrentUser() user: any,
+    @Req() req: Request,
+  ) {
+    return this.svc.reserveToken(
+      tokenNumber,
+      dto,
+      user.username ?? user.id,
+      req.ip,
+    );
+  }
+
+  /**
+   * POST /token/registration/:tokenNumber/heartbeat
+   * Body: { reservationId: "<same uuid>" }
+   *
+   * Called periodically to extend the 30s reservation window. Reachable by
+   * either a normal authenticated receptionist session, or (popup-window
+   * HIS integration) a reservation-capability token -- in which case
+   * ReservationScopeGuard enforces it can only heartbeat its own
+   * reservation. Called every ~20s directly from the HIS page's own
+   * JavaScript while a registration is in progress, since the popup that
+   * created the reservation has already closed by then.
+   */
+  @Post(':tokenNumber/heartbeat')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('TOKEN:REGISTRATION:ACTION')
+  @UseGuards(ReservationScopeGuard)
+  @UseInterceptors(TenantContextInterceptor)
+  heartbeat(
+    @Param('tokenNumber') tokenNumber: string,
+    @Body() dto: HeartbeatDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.svc.heartbeat(
+      tokenNumber,
+      dto,
+      user.username ?? user.id,
+    );
+  }
+
+  /**
+   * DELETE /token/registration/:tokenNumber/reserve
+   * Body: { reservationId: "<same uuid>" }
+   * Explicit release -- user de-selected the token or cancelled the dialog.
+   */
+  @Delete(':tokenNumber/reserve')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions('TOKEN:REGISTRATION:ACTION')
+  @UseGuards(ReservationScopeGuard)
+  @UseInterceptors(TenantContextInterceptor)
+  async release(
+    @Param('tokenNumber') tokenNumber: string,
+    @Body() dto: ReleaseTokenDto,
+    @CurrentUser() user: any,
+    @Req() req: Request,
+  ) {
+    await this.svc.releaseReservation(
+      tokenNumber,
+      dto,
+      user.username ?? user.id,
+      req.ip,
+    );
+  }
+
+  // ── Patient mapping ───────────────────────────────────────────────────────
+
+  /**
+   * POST /token/map/patient
+   * Body: { tokenNumber, hisPatientId, mrn, patientName?, visitId?, reservationId? }
+   *
+   * Stage 1 atomic: inserts mapping + sets token REGISTERED + releases reservation.
+   *
+   * Called directly, cross-origin, from the HIS page's own JavaScript --
+   * after its existing Register/Save button's oncomplete callback detects
+   * a successful registration from the DOM (see the popup-window HIS
+   * integration architecture doc). Authenticated with the reservation-
+   * capability token minted at reserve time, never the receptionist's real
+   * session. ReservationScopeGuard requires `reservationId` to be present
+   * and match that token for capability-authenticated callers; a normal
+   * fully-authenticated session may omit it (backward compatible).
+   */
+  @Post('/map/patient')  // note: no :tokenNumber prefix -- this is the HIS integration point
+  @HttpCode(HttpStatus.CREATED)
+  @RequirePermissions('TOKEN:REGISTRATION:ACTION')
+  @UseGuards(ReservationScopeGuard)
+  @UseInterceptors(TenantContextInterceptor)
+  mapPatient(
+    @Body() dto: MapPatientDto,
+    @CurrentUser() user: any,
+    @Req() req: Request,
+  ) {
+    return this.svc.mapPatient(dto, user.username ?? user.id, req.ip);
+  }
+
+  /**
+   * POST /token/map/visit
+   * Body: { tokenNumber, visitId }
+   *
+   * Stage 2 (optional): updates visit_id on an existing mapping.
+   * Safe to call multiple times -- last write wins on visit_id.
+   */
+  @Post('/map/visit')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('TOKEN:REGISTRATION:ACTION')
+  @UseInterceptors(TenantContextInterceptor)
+  mapVisit(
+    @Body() dto: MapVisitDto,
+    @CurrentUser() user: any,
+    @Req() req: Request,
+  ) {
+    return this.svc.mapVisit(dto, user.username ?? user.id, req.ip);
+  }
+
+  // ── Supervisor ────────────────────────────────────────────────────────────
+
+  /**
+   * PATCH /token/registration/:tokenNumber/supervisor-reset
+   * Body: { targetStatus: 'CALLED'|'WAITING', reason: string }
+   *
+   * Resets a REGISTERED token back to an active queue state.
+   * Requires TOKEN:REGISTRATION:SUPERVISOR_RESET permission.
+   */
+  @Patch(':tokenNumber/supervisor-reset')
+  @RequirePermissions('TOKEN:REGISTRATION:SUPERVISOR_RESET')
+  @UseInterceptors(TenantContextInterceptor)
+  supervisorReset(
+    @Param('tokenNumber') tokenNumber: string,
+    @Body() dto: SupervisorResetDto,
+    @CurrentUser() user: any,
+    @Req() req: Request,
+  ) {
+    return this.svc.supervisorReset(
+      tokenNumber,
+      dto,
+      user.username ?? user.id,
+      req.ip,
+    );
+  }
+}

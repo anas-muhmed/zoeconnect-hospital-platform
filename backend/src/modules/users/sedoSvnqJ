@@ -1,0 +1,43 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
+import { User } from './entities/user.entity';
+import { Role } from '../rbac/entities/role.entity';
+import { Permission } from '../rbac/entities/permission.entity';
+import { AuditModule } from '../audit/audit.module';
+import { TenantModule } from '../platform/tenant/tenant.module';
+import { createTenantScopedRepositoryProvider } from '../platform/tenant/repositories/tenant-scoped-repository.provider';
+
+/**
+ * Stage B (Checkpoint B3.3) — `findAll()`/`findOne()` (the two methods
+ * backing `GET /users` and `GET /users/:id`) use a `TenantScopedRepository`
+ * for `User`, alongside the raw `Repository<User>` used everywhere else
+ * (every write path, plus `findByHisEmployeeCode()` — which is called from
+ * `auth.service.ts` and `his.controller.ts`, outside this module's own
+ * controller, so it stays on the raw repository; see the B3.3 pre-flight
+ * finding in `HYBRID_ARCHITECTURE_LOG.md`).
+ *
+ * Promoted 'dry-run' -> 'enforced' (2026-07-16): live Cloud Tenant
+ * Onboarding testing surfaced that `GET /users` was returning every user
+ * across every tenant (dry-run's whole point is to leave production
+ * behavior unfiltered while comparison-logging what enforcement would do —
+ * so this was expected of dry-run, not a new bug from this change). This is
+ * the first module promoted; RBAC/Auth/Loyalty/EIC/CMS/Token/Feedback are
+ * still 'dry-run' pending the audit tracked in
+ * `PHASE_10_DEFERRED_BACKLOG.md`.
+ */
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([User, Role, Permission]),
+    AuditModule,
+    TenantModule,
+  ],
+  controllers: [UsersController],
+  providers: [
+    UsersService,
+    createTenantScopedRepositoryProvider(User, { mode: 'enforced' }),
+  ],
+  exports: [UsersService, TypeOrmModule],
+})
+export class UsersModule {}

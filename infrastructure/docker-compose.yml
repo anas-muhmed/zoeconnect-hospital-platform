@@ -1,0 +1,107 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ZoeConnect — Local Development Environment
+# Provides: PostgreSQL 15 + Redis 7
+# Oracle HIS is NOT containerised — it is the existing hospital HIS server.
+#
+# Usage:
+#   docker compose up -d          # Start
+#   docker compose down           # Stop (keeps volumes)
+#   docker compose down -v        # Stop + delete all data
+#   docker compose logs -f        # View logs
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL 15 ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: hdsp_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       hdsp_db
+      POSTGRES_USER:     hdsp_app
+      POSTGRES_PASSWORD: dev_password_change_in_prod
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hdsp_app -d hdsp_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - hdsp_network
+
+  # ── Redis 7 ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: hdsp_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass dev_redis_password
+      --bind 0.0.0.0
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 3600 1
+      --save 300 100
+      --save 60 10000
+      --loglevel notice
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "dev_redis_password", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - hdsp_network
+
+  # ── Redis Commander (Dev UI) ──────────────────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: hdsp_redis_ui
+    restart: unless-stopped
+    profiles: ["tools"]          # Only starts with: docker compose --profile tools up
+    environment:
+      REDIS_HOSTS: "local:redis:6379:0:dev_redis_password"
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - hdsp_network
+
+  # ── pgAdmin (Dev UI) ─────────────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: hdsp_pgadmin
+    restart: unless-stopped
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@hdsp.local
+      PGADMIN_DEFAULT_PASSWORD: pgadmin_dev
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hdsp_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  hdsp_network:
+    driver: bridge

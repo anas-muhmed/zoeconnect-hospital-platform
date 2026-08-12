@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/modules/his/**/*.ts",
+    "src/modules/loyalty/**/*.ts"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "_comment": "HDSP Connector — OPTIONAL ECS task definition, provided for completeness only. The roadmap's Task 9.2 'three core services' refers to API/worker/frontend, NOT the Connector -- per Phase 7's Vendor Portal impact analysis, WHO deploys a Connector instance for a given hospital (and where -- on-prem hardware, a hospital-side edge VM, or a VPN-connected ECS task like this one) is explicitly unassigned by the roadmap and deferred to Phase 10 (Tenant Provisioning). This file exists so the option is available once that decision is made; it is not wired into any Terraform service/ALB target in this phase.",
+  "family": "hdsp-connector",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/hdsp-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/hdsp-connector-task-role",
+  "containerDefinitions": [
+    {
+      "name": "hdsp-connector",
+      "image": "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/hdsp-connector:${IMAGE_TAG}",
+      "essential": true,
+      "portMappings": [{ "containerPort": 4100, "protocol": "tcp" }],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "ORACLE_MODE", "value": "thick" },
+        { "name": "ORACLE_INSTANT_CLIENT_PATH", "value": "/opt/oracle" }
+      ],
+      "secrets": [
+        { "name": "ORACLE_HOST", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/connector-oracle-${TENANT_CODE}:host::" },
+        { "name": "ORACLE_PORT", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/connector-oracle-${TENANT_CODE}:port::" },
+        { "name": "ORACLE_SERVICE", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/connector-oracle-${TENANT_CODE}:service::" },
+        { "name": "ORACLE_USER", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/connector-oracle-${TENANT_CODE}:user::" },
+        { "name": "ORACLE_PASSWORD", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/connector-oracle-${TENANT_CODE}:password::" },
+        { "name": "REDIS_URL", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/elasticache-connection:connectorUrl::" }
+      ],
+      "_redis_tls_note": "connectorUrl must use the rediss:// scheme (not redis://) with the ElastiCache auth token embedded (rediss://:<auth_token>@<primary_endpoint>:6379) -- RedisMessageTransport constructs ioredis directly from this URL string, and ioredis auto-negotiates TLS from the rediss:// scheme alone (unlike the backend's object-style ioredis config in redis.config.ts, which needed an explicit REDIS_TLS flag -- see that file's doc comment). See secrets.tf's connectorUrl value shape.",
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:4100/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/hdsp-connector",
+          "awslogs-region": "${REGION}",
+          "awslogs-stream-prefix": "connector"
+        }
+      }
+    }
+  ],
+  "_networking_note": "This task's subnet/security-group must have a routed path to the specific hospital's on-prem Oracle (VPN, Direct Connect, or PrivateLink, depending on the hospital's connectivity) -- one Connector instance per hospital/tenant, never shared, since each dials a different on-prem Oracle. ${TENANT_CODE} above is illustrative of the one-secret-set-per-hospital shape this implies, not a resolved provisioning mechanism."
+}

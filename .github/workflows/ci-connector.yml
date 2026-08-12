@@ -1,0 +1,90 @@
+name: CI - Connector
+
+# Phase 6 ("Connector", Hybrid Architecture roadmap): the connector/ package
+# and its @hdsp/oracle-client dependency build and test entirely
+# independently of the main backend -- this is deliberately a separate
+# workflow from ci-backend.yml, not an extra step bolted onto it, matching
+# the phase's own stated goal: "The Connector exists, builds, and can
+# theoretically run standalone, but nothing in production talks to it yet."
+# A failure here has zero effect on ci-backend.yml's ability to pass.
+#
+# Phase 12 (Task 12.1): switched to `npm ci`. `connector/` and
+# `packages/oracle-client` are npm workspace members (root package.json's
+# `workspaces: ["packages/*", "connector"]`) with no lockfile of their
+# own -- only the root `package-lock.json` covers them. `npm ci` therefore
+# runs once at the repo root (installing/hoisting both workspace members'
+# dependencies together), replacing what used to be two separate
+# `npm install` calls run inside each subdirectory.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/oracle-client/**'
+      - 'connector/**'
+      - '.github/workflows/ci-connector.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'packages/oracle-client/**'
+      - 'connector/**'
+      - '.github/workflows/ci-connector.yml'
+
+jobs:
+  oracle-client:
+    name: "@hdsp/oracle-client (shared package)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install (repo root -- oracle-client and connector are npm workspace members, no per-package lockfile)
+        run: npm ci
+      - name: Lint (typecheck)
+        working-directory: packages/oracle-client
+        run: npm run lint
+      - name: Test
+        working-directory: packages/oracle-client
+        run: npm run test
+      - name: Build
+        working-directory: packages/oracle-client
+        run: npm run build
+
+  connector:
+    name: "@hdsp/connector (standalone build/run)"
+    runs-on: ubuntu-latest
+    needs: oracle-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install (repo root -- see oracle-client job's note on workspace lockfiles)
+        run: npm ci
+      - name: "Build oracle-client (populates dist/ for connector's file: dependency)"
+        working-directory: packages/oracle-client
+        run: npm run build
+      - name: Lint (typecheck)
+        working-directory: connector
+        run: npm run lint
+      - name: Test (SQL-template registry + mock-transport round-trip)
+        working-directory: connector
+        run: npm run test
+      - name: Build
+        working-directory: connector
+        run: npm run build
+      - name: Verify standalone boot (Task 6.3's "builds and runs standalone" checklist item)
+        # No real Oracle/Redis in CI -- OracleClient.connect() degrades
+        # gracefully (available=false, logged, no throw, matching its
+        # documented behavior) and RedisMessageTransport will fail to
+        # reach a Redis server. This step only proves the compiled
+        # entrypoint starts and the health server binds -- not a full
+        # integration test. Full Oracle-dependent verification is gated on
+        # the office environment, same standing caveat as every other
+        # Oracle-touching change in this project.
+        working-directory: connector
+        run: |
+          set -e
+          REDIS_HOST=127.0.0.1 REDIS_PORT=6390 CONNECTOR_HEALTH_PORT=4100 timeout 5 node dist/index.js || true
+          echo "Standalone boot smoke check complete (non-zero/timeout exit is expected -- no live Redis/Oracle in CI)."

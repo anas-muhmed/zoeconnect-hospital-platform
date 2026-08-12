@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules", 
+    "test", 
+    "dist", 
+    "**/*spec.ts",
+    "src/modules/document-platform/forms-designer",
+    "src/modules/document-platform/forms-import",
+    "src/modules/document-platform/forms-runtime"
+  ]
+}

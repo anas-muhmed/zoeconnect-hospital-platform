@@ -1,0 +1,51 @@
+# Phase 6 Implementation Plan — Connector
+
+**Companion to:** `HDSP_Hybrid_Implementation_Roadmap.md`'s Phase 6 section — tracks actual execution, matching Phases 2-5's companion-doc pattern.
+
+**Governance carried forward:** continuous implementation, no per-task stop-and-review, architectural blockers only.
+
+**Scope directive (2026-07-16):** the user's initial Phase 6 proposal (capability-level interfaces — `IPatientProvider`/`IAppointmentProvider`/`IEmployeeProvider`/`ITokenProvider`) was flagged as a real fork from the roadmap document's actual Phase 6 before any implementation started, since it would have touched Business/Platform modules directly, which Phase 6's own text explicitly rules out ("no changes to any Business/Platform module," scope creep into business logic called out as the phase's main risk). User confirmed: proceed with the roadmap-literal Phase 6 (standalone `connector/` package, Oracle Client extraction, Message Transport protocol). This is recorded here as a real decision point, not a silent judgment call — see the conversation for the full framing.
+
+---
+
+## Pre-flight (2026-07-16)
+
+1. **Path claim check (same class of discrepancy Phase 2's pre-flight found):** the roadmap says `DirectOracleTransport` lives at `backend/src/infrastructure/oracle/direct-oracle.transport.ts`. It's actually at `backend/src/modules/his/direct-oracle.transport.ts` — confirmed by direct read, same as Phase 2's finding for the Phase 0 scaffolding directory. Every task below uses the real path.
+2. **`OraclePoolService`** (`backend/src/modules/his/oracle-pool.service.ts`) is a ~400-line NestJS `@Injectable()` service with `OnModuleInit`/`OnModuleDestroy` lifecycle hooks, pool-creation-with-retry, a fail-fast circuit breaker, `query`/`queryOne`/`execute`/`reconfigure`, plus two backend-specific orchestration steps: applying vendor-portal-pushed DB credentials from `HisConfigService` on startup, and clearing a Redis branch-name cache after a successful `reconfigure()`. The roadmap's Task 6.1 asks to "relocate (not duplicate) the pool/circuit-breaker logic" — read in full before extracting anything, to separate the genuinely framework-agnostic core (pool/circuit-breaker/query/execute) from the two backend-specific orchestration steps that should stay in the NestJS layer.
+3. **Confirmed via direct read:** `DirectOracleTransport` already delegates 1:1 to `OraclePoolService` with zero reshaping (Phase 2's own work) — so extracting `OraclePoolService`'s internals doesn't require touching `DirectOracleTransport` at all, as long as `OraclePoolService`'s public method signatures stay byte-identical.
+4. **Monorepo package conventions confirmed by reading `packages/form-schema`:** `@hdsp/<name>` package naming, `tsconfig.json`/`jest.config.js` boilerplate, `main`/`types` pointing at `dist/`, consumed via `"file:../packages/<name>"` in `backend/package.json`, built via root `package.json`'s `build:packages`/`test:packages`/`lint:packages` scripts (explicit per-workspace chains, not a glob). Followed exactly for `@hdsp/oracle-client`, and root `package.json` updated to include it in all three chains plus a new `connector` workspace entry and `build:connector`/`test:connector`/`dev:connector` scripts.
+5. **No live Oracle instance or mock/test double exists in this sandbox.** The roadmap's own testing checklist requires "Oracle Client (shared package) produces identical query results to today's OraclePoolService/DirectOracleTransport for the same test queries" and "full Oracle-dependent flow regression" — neither is achievable from this sandboxed session, same standing limitation as every other Oracle-touching phase in this project. The extraction was done as a maximally mechanical, byte-for-byte-equivalent move (verified by side-by-side comparison against the original `oracle-pool.service.ts`, not rewritten from memory), and unit tests were written for the parts that don't require a live Oracle connection (error-path behavior, circuit-breaker state, `reconfigure()`'s validation). Full parity verification against real Oracle is logged as a required follow-up, not attempted here.
+
+**Status:** pre-flight complete. Proceeding to implementation.
+
+---
+
+## Task sequencing
+
+1. **Task 6.1 — `packages/oracle-client`**: new shared package (`OracleClient` class) containing the pool/circuit-breaker/query/execute/reconfigure logic, mechanically extracted. `OraclePoolService` refactored into a thin NestJS wrapper that builds an `OracleClientConfig` from `ConfigService`, calls `client.connect()`/`client.close()` from its own lifecycle hooks, and keeps the two backend-specific orchestration steps (`HisConfigService` credential loading, Redis branch-cache clearing via `OracleClient.reconfigure()`'s new `onReconfigured` hook) at the wrapper layer. Every public method signature, default value, and error type (`HisUnavailableError`) is unchanged; both are still re-exported from `oracle-pool.service.ts` so `DirectOracleTransport`'s existing import (`import { OraclePoolService, OracleBindParameters } from './oracle-pool.service'`) needs no changes at all.
+2. **Task 6.2 — Message Transport protocol**: `{correlationId, sqlTemplateId, binds} → {correlationId, rows|rowsAffected|error}` (`connector/src/protocol/message-transport.interface.ts`), plus `SqlTemplateRegistry` (the SQL-template allow-list — the Connector never accepts or runs a raw SQL string over the wire, only a pre-registered `sqlTemplateId`). Concrete transport: `RedisMessageTransport` (pub/sub), chosen because Redis/`ioredis` is already established infrastructure in this monorepo — reusing an already-adopted dependency rather than introducing a new message-queue technology for a phase whose goal is proving the protocol contract. A WebSocket transport for the interactive-lookup case (per the roadmap's own suggestion) is documented as a deliberate follow-up, not built here — `IMessageTransport` is shaped so adding one later needs no changes to `Connector` itself.
+3. **Task 6.3 — Standalone build/run**: `connector/` top-level package (own `package.json`/`tsconfig.json`, `npm run build`/`start`/`test`), entrypoint (`src/index.ts`) that boots a `Connector` (wiring `OracleClient` + `RedisMessageTransport` + `SqlTemplateRegistry`) from `ORACLE_*`/`REDIS_*` env vars — same variable names as the backend's `env.validation.ts`, so a shared `.env` works for local/CI testing, without implying runtime coupling.
+4. **Task 6.4 — Health-check**: `startHealthServer()`, a plain HTTP endpoint (not `@nestjs/terminus`, since the Connector has no NestJS runtime) extending the same TCP-reachability-based, non-throwing pattern as `backend/src/common/health/oracle.health.ts`.
+5. **Task 6.5 — Versioning/compatibility-matrix documentation**: `connector/VERSIONING.md`, establishing the semver meaning for this component and a compatibility-matrix table (currently a single "not yet applicable" row, since `CloudOracleTransport` doesn't exist until Phase 7) — plus a documented, not-yet-implemented follow-up (version-advertisement at connect time) for when a real second party exists to check compatibility against.
+6. **CI**: new, separate `ci-connector.yml` workflow (path-filtered to `packages/oracle-client/**`/`connector/**`, so it doesn't run on every unrelated backend PR) building/testing `@hdsp/oracle-client` and `@hdsp/connector` independently of `ci-backend.yml` — matches the phase's own stated goal of zero coupling to the main backend's build/deploy path.
+
+---
+
+## Status: ✅ PHASE 6 COMPLETE for sandbox-reachable scope (2026-07-16)
+
+| Task | Status | Notes |
+|---|---|---|
+| 6.1 — Extract `packages/oracle-client` | ✅ | Mechanical extraction; `OraclePoolService`'s public surface byte-identical; unit tests cover non-Oracle-dependent paths only (see pre-flight item 5) |
+| 6.2 — Message Transport protocol | ✅ | Protocol types + `SqlTemplateRegistry` (allow-list) + `RedisMessageTransport`; WebSocket transport deliberately deferred |
+| 6.3 — Standalone build/run | ✅ | `connector/` builds and boots independently; no real Oracle/Redis exercised in this sandbox |
+| 6.4 — Health-check | ✅ | Plain HTTP `/health` endpoint, same non-throwing pattern as the backend's existing Oracle health indicator |
+| 6.5 — Versioning docs | ✅ | `connector/VERSIONING.md`; compatibility matrix has its first real row starting Phase 7 |
+| CI | ✅ | New `ci-connector.yml`, path-filtered, independent of `ci-backend.yml` |
+
+**Follow-ups for a human, outside this session's reach:**
+1. **The single highest-priority follow-up**: run the roadmap's own testing checklist against a real (or realistic test) Oracle instance once the branch reaches the office environment — specifically, confirm `OracleClient`/`OraclePoolService` produce byte-identical query results to the pre-extraction code for the same test queries, and that `DirectOracleTransport`'s production behavior is provably unaffected. This is Task 6.1's own stated highest-regression-risk item and was NOT verified against live Oracle in this sandbox — only mechanically compared line-by-line and unit-tested for non-Oracle-dependent paths.
+2. Run `npm install` at the repo root and inside `packages/oracle-client`/`connector` to resolve the new workspace dependencies; run the real `npm run build:packages`/`test:packages` to confirm the monorepo wiring is correct outside this sandbox.
+3. No real `sqlTemplateId`s are registered yet — the Connector's SQL-template allow-list mechanism is proven (tests), but the actual production template set is Phase 7 work, once `CloudOracleTransport` defines which queries need to route through the Connector.
+4. A WebSocket (or short-poll) transport for interactive/low-latency lookups, per the roadmap's own recommendation alongside the async queue transport — not built in Phase 6, `IMessageTransport` is shaped to accommodate one later without touching `Connector`.
+5. Connector version-advertisement at connect time (so a backend can refuse an incompatible Connector rather than failing opaquely) — documented in `VERSIONING.md` as future work, not implemented.
+6. `connector/`'s CI job's "verify standalone boot" step is a smoke check only (no live Redis/Oracle in CI) — not a substitute for item 1's real-environment verification.

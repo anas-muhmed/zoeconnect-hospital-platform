@@ -1,0 +1,144 @@
+"filename", "language", "TypeScript JSX", "JSON with Comments", "TypeScript", "JavaScript", "JSON", "XML", "comment", "blank", "total"
+"d:\HDSP_HYBRID\frontend\lib\dummy-module.js", "JavaScript", 0, 0, 0, 9, 0, 0, 1, 2, 12
+"d:\HDSP_HYBRID\frontend\next-env.d.ts", "TypeScript", 0, 0, 0, 0, 0, 0, 4, 2, 6
+"d:\HDSP_HYBRID\frontend\next.config.mjs", "JavaScript", 0, 0, 0, 101, 0, 0, 18, 13, 132
+"d:\HDSP_HYBRID\frontend\package-lock.json", "JSON", 0, 0, 0, 0, 7999, 0, 0, 1, 8000
+"d:\HDSP_HYBRID\frontend\package.json", "JSON", 0, 0, 0, 0, 54, 0, 0, 1, 55
+"d:\HDSP_HYBRID\frontend\public\logo-full.svg", "XML", 0, 0, 0, 0, 0, 15787, 0, 90, 15877
+"d:\HDSP_HYBRID\frontend\public\logo-icon.svg", "XML", 0, 0, 0, 0, 0, 11196, 0, 52, 11248
+"d:\HDSP_HYBRID\frontend\src\app\(auth)\change-password\page.tsx", "TypeScript JSX", 169, 0, 0, 0, 0, 0, 0, 15, 184
+"d:\HDSP_HYBRID\frontend\src\app\(auth)\login\page.tsx", "TypeScript JSX", 801, 0, 0, 0, 0, 0, 55, 46, 902
+"d:\HDSP_HYBRID\frontend\src\app\(auth)\setup\page.tsx", "TypeScript JSX", 202, 0, 0, 0, 0, 0, 4, 20, 226
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\attendance\monitoring\page.tsx", "TypeScript JSX", 424, 0, 0, 0, 0, 0, 0, 26, 450
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\cms\displays\page.tsx", "TypeScript JSX", 870, 0, 0, 0, 0, 0, 20, 74, 964
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\cms\emergency\page.tsx", "TypeScript JSX", 136, 0, 0, 0, 0, 0, 0, 16, 152
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\cms\groups\page.tsx", "TypeScript JSX", 135, 0, 0, 0, 0, 0, 0, 19, 154
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\cms\media\page.tsx", "TypeScript JSX", 294, 0, 0, 0, 0, 0, 2, 23, 319
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\cms\monitoring\page.tsx", "TypeScript JSX", 245, 0, 0, 0, 0, 0, 1, 24, 270
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\cms\playlists\[id]\page.tsx", "TypeScript JSX", 612, 0, 0, 0, 0, 0, 14, 52, 678
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\cms\playlists\page.tsx", "TypeScript JSX", 149, 0, 0, 0, 0, 0, 0, 13, 162
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\cms\settings\page.tsx", "TypeScript JSX", 107, 0, 0, 0, 0, 0, 0, 14, 121
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\dashboard\page.tsx", "TypeScript JSX", 634, 0, 0, 0, 0, 0, 23, 36, 693
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\assessments\[id]\page.tsx", "TypeScript JSX", 808, 0, 0, 0, 0, 0, 19, 81, 908
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\assessments\page.tsx", "TypeScript JSX", 267, 0, 0, 0, 0, 0, 3, 24, 294
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\discharge\[id]\page.tsx", "TypeScript JSX", 455, 0, 0, 0, 0, 0, 3, 17, 475
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\enrollments\[id]\page.tsx", "TypeScript JSX", 1161, 0, 0, 0, 0, 0, 23, 58, 1242
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\enrollments\new\page.tsx", "TypeScript JSX", 242, 0, 0, 0, 0, 0, 6, 24, 272
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\layout.tsx", "TypeScript JSX", 9, 0, 0, 0, 0, 0, 0, 3, 12
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\page.tsx", "TypeScript JSX", 101, 0, 0, 0, 0, 0, 1, 8, 110
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\patients\[id]\page.tsx", "TypeScript JSX", 368, 0, 0, 0, 0, 0, 12, 30, 410
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\patients\new\page.tsx", "TypeScript JSX", 210, 0, 0, 0, 0, 0, 4, 21, 235
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\patients\page.tsx", "TypeScript JSX", 235, 0, 0, 0, 0, 0, 2, 12, 249
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\patients\search\page.tsx", "TypeScript JSX", 248, 0, 0, 0, 0, 0, 8, 25, 281
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\preschool\[id]\page.tsx", "TypeScript JSX", 813, 0, 0, 0, 0, 0, 35, 76, 924
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\preschool\new\page.tsx", "TypeScript JSX", 278, 0, 0, 0, 0, 0, 7, 28, 313
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\preschool\page.tsx", "TypeScript JSX", 164, 0, 0, 0, 0, 0, 2, 14, 180
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\progress-reports\[id]\page.tsx", "TypeScript JSX", 487, 0, 0, 0, 0, 0, 7, 36, 530
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\progress-reports\page.tsx", "TypeScript JSX", 311, 0, 0, 0, 0, 0, 20, 36, 367
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\sessions\[id]\page.tsx", "TypeScript JSX", 406, 0, 0, 0, 0, 0, 20, 35, 461
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\sessions\page.tsx", "TypeScript JSX", 220, 0, 0, 0, 0, 0, 2, 19, 241
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\eic\sync\page.tsx", "TypeScript JSX", 429, 0, 0, 0, 0, 0, 9, 33, 471
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\analytics\page.tsx", "TypeScript JSX", 251, 0, 0, 0, 0, 0, 6, 18, 275
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\campaigns\page.tsx", "TypeScript JSX", 274, 0, 0, 0, 0, 0, 3, 23, 300
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\complaints\page.tsx", "TypeScript JSX", 275, 0, 0, 0, 0, 0, 8, 23, 306
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\forms\[id]\page.tsx", "TypeScript JSX", 775, 0, 0, 0, 0, 0, 48, 88, 911
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\forms\page.tsx", "TypeScript JSX", 203, 0, 0, 0, 0, 0, 0, 18, 221
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\languages\page.tsx", "TypeScript JSX", 87, 0, 0, 0, 0, 0, 6, 13, 106
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\qr-codes\page.tsx", "TypeScript JSX", 238, 0, 0, 0, 0, 0, 5, 27, 270
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\responses\page.tsx", "TypeScript JSX", 101, 0, 0, 0, 0, 0, 7, 13, 121
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\feedback\settings\page.tsx", "TypeScript JSX", 163, 0, 0, 0, 0, 0, 14, 19, 196
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\forms\designer\[documentId]\page.tsx", "TypeScript JSX", 195, 0, 0, 0, 0, 0, 32, 28, 255
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\forms\designer\page.tsx", "TypeScript JSX", 148, 0, 0, 0, 0, 0, 8, 12, 168
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\forms\designer\templates\page.tsx", "TypeScript JSX", 123, 0, 0, 0, 0, 0, 8, 12, 143
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\forms\import\page.tsx", "TypeScript JSX", 426, 0, 0, 0, 0, 0, 42, 55, 523
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\layout.tsx", "TypeScript JSX", 617, 0, 0, 0, 0, 0, 31, 44, 692
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\loyalty\accounts\[id]\page.tsx", "TypeScript JSX", 398, 0, 0, 0, 0, 0, 11, 26, 435
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\loyalty\campaigns\page.tsx", "TypeScript JSX", 483, 0, 0, 0, 0, 0, 10, 33, 526
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\loyalty\earn\page.tsx", "TypeScript JSX", 251, 0, 0, 0, 0, 0, 3, 22, 276
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\loyalty\enroll\page.tsx", "TypeScript JSX", 190, 0, 0, 0, 0, 0, 6, 18, 214
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\loyalty\page.tsx", "TypeScript JSX", 621, 0, 0, 0, 0, 0, 26, 50, 697
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\notifications\page.tsx", "TypeScript JSX", 401, 0, 0, 0, 0, 0, 8, 33, 442
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\rbac\page.tsx", "TypeScript JSX", 243, 0, 0, 0, 0, 0, 9, 19, 271
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\reports\page.tsx", "TypeScript JSX", 351, 0, 0, 0, 0, 0, 8, 19, 378
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\security\password-reset-requests\page.tsx", "TypeScript JSX", 447, 0, 0, 0, 0, 0, 11, 32, 490
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\settings\card-config\page.tsx", "TypeScript JSX", 347, 0, 0, 0, 0, 0, 12, 28, 387
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\settings\license\page.tsx", "TypeScript JSX", 815, 0, 0, 0, 0, 0, 28, 52, 895
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\settings\page.tsx", "TypeScript JSX", 4, 0, 0, 0, 0, 0, 0, 2, 6
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\token\config\kiosks\page.tsx", "TypeScript JSX", 422, 0, 0, 0, 0, 0, 24, 39, 485
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\token\config\page.tsx", "TypeScript JSX", 440, 0, 0, 0, 0, 0, 8, 30, 478
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\token\config\sc-configs\page.tsx", "TypeScript JSX", 412, 0, 0, 0, 0, 0, 7, 40, 459
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\token\layout.tsx", "TypeScript JSX", 7, 0, 0, 0, 0, 0, 0, 3, 10
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\token\loading.tsx", "TypeScript JSX", 9, 0, 0, 0, 0, 0, 6, 2, 17
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\token\page.tsx", "TypeScript JSX", 1071, 0, 0, 0, 0, 0, 153, 115, 1339
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\token\print-config\page.tsx", "TypeScript JSX", 248, 0, 0, 0, 0, 0, 1, 29, 278
+"d:\HDSP_HYBRID\frontend\src\app\(platform)\users\page.tsx", "TypeScript JSX", 728, 0, 0, 0, 0, 0, 31, 44, 803
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\content-renderers.tsx", "TypeScript JSX", 22, 0, 0, 0, 0, 0, 18, 7, 47
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\page.tsx", "TypeScript JSX", 342, 0, 0, 0, 0, 0, 56, 46, 444
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\player-cache.ts", "TypeScript", 0, 0, 89, 0, 0, 0, 26, 14, 129
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\player-log.ts", "TypeScript", 0, 0, 40, 0, 0, 0, 9, 9, 58
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\player-storage.ts", "TypeScript", 0, 0, 38, 0, 0, 0, 12, 7, 57
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\renderers\image.plugin.tsx", "TypeScript JSX", 26, 0, 0, 0, 0, 0, 2, 5, 33
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\renderers\plugin-types.ts", "TypeScript", 0, 0, 43, 0, 0, 0, 28, 8, 79
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\renderers\queue-widget.plugin.tsx", "TypeScript JSX", 144, 0, 0, 0, 0, 0, 15, 17, 176
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\renderers\registry.ts", "TypeScript", 0, 0, 22, 0, 0, 0, 2, 7, 31
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\renderers\video.plugin.tsx", "TypeScript JSX", 26, 0, 0, 0, 0, 0, 0, 5, 31
+"d:\HDSP_HYBRID\frontend\src\app\cms\player\[slug]\ticker-overlay.tsx", "TypeScript JSX", 81, 0, 0, 0, 0, 0, 21, 13, 115
+"d:\HDSP_HYBRID\frontend\src\app\dev\canvas-sandbox\page.tsx", "TypeScript JSX", 30, 0, 0, 0, 0, 0, 19, 6, 55
+"d:\HDSP_HYBRID\frontend\src\app\dev\form-designer-sandbox\page.tsx", "TypeScript JSX", 113, 0, 0, 0, 0, 0, 19, 16, 148
+"d:\HDSP_HYBRID\frontend\src\app\display\[slug]\layout.tsx", "TypeScript JSX", 8, 0, 0, 0, 0, 0, 4, 2, 14
+"d:\HDSP_HYBRID\frontend\src\app\display\[slug]\page.tsx", "TypeScript JSX", 253, 0, 0, 0, 0, 0, 21, 35, 309
+"d:\HDSP_HYBRID\frontend\src\app\feedback\f\[token]\page.tsx", "TypeScript JSX", 593, 0, 0, 0, 0, 0, 71, 63, 727
+"d:\HDSP_HYBRID\frontend\src\app\kiosk\[slug]\page.tsx", "TypeScript JSX", 541, 0, 0, 0, 0, 0, 70, 53, 664
+"d:\HDSP_HYBRID\frontend\src\app\kiosk\layout.tsx", "TypeScript JSX", 8, 0, 0, 0, 0, 0, 0, 2, 10
+"d:\HDSP_HYBRID\frontend\src\app\layout.tsx", "TypeScript JSX", 39, 0, 0, 0, 0, 0, 0, 4, 43
+"d:\HDSP_HYBRID\frontend\src\app\page.tsx", "TypeScript JSX", 4, 0, 0, 0, 0, 0, 4, 2, 10
+"d:\HDSP_HYBRID\frontend\src\app\token\display-config\page.tsx", "TypeScript JSX", 937, 0, 0, 0, 0, 0, 44, 71, 1052
+"d:\HDSP_HYBRID\frontend\src\app\token\display-config\renderer.tsx", "TypeScript JSX", 263, 0, 0, 0, 0, 0, 0, 19, 282
+"d:\HDSP_HYBRID\frontend\src\app\token\display-config\types.ts", "TypeScript", 0, 0, 123, 0, 0, 0, 8, 9, 140
+"d:\HDSP_HYBRID\frontend\src\app\token\display-pages\page.tsx", "TypeScript JSX", 305, 0, 0, 0, 0, 0, 20, 33, 358
+"d:\HDSP_HYBRID\frontend\src\app\token\display\layout.tsx", "TypeScript JSX", 8, 0, 0, 0, 0, 0, 5, 2, 15
+"d:\HDSP_HYBRID\frontend\src\app\token\display\page.tsx", "TypeScript JSX", 274, 0, 0, 0, 0, 0, 36, 37, 347
+"d:\HDSP_HYBRID\frontend\src\app\token\kiosk\[code]\page.tsx", "TypeScript JSX", 349, 0, 0, 0, 0, 0, 18, 39, 406
+"d:\HDSP_HYBRID\frontend\src\app\token\kiosk\layout.tsx", "TypeScript JSX", 8, 0, 0, 0, 0, 0, 0, 2, 10
+"d:\HDSP_HYBRID\frontend\src\app\token\print-kiosk\layout.tsx", "TypeScript JSX", 8, 0, 0, 0, 0, 0, 0, 2, 10
+"d:\HDSP_HYBRID\frontend\src\app\token\print-kiosk\page.tsx", "TypeScript JSX", 423, 0, 0, 0, 0, 0, 22, 55, 500
+"d:\HDSP_HYBRID\frontend\src\components\EmptyState.tsx", "TypeScript JSX", 43, 0, 0, 0, 0, 0, 0, 3, 46
+"d:\HDSP_HYBRID\frontend\src\components\LicenseBanner.tsx", "TypeScript JSX", 70, 0, 0, 0, 0, 0, 8, 15, 93
+"d:\HDSP_HYBRID\frontend\src\components\PageHeader.tsx", "TypeScript JSX", 138, 0, 0, 0, 0, 0, 5, 12, 155
+"d:\HDSP_HYBRID\frontend\src\components\PatientSearch.tsx", "TypeScript JSX", 147, 0, 0, 0, 0, 0, 1, 12, 160
+"d:\HDSP_HYBRID\frontend\src\components\SectionCard.tsx", "TypeScript JSX", 41, 0, 0, 0, 0, 0, 1, 3, 45
+"d:\HDSP_HYBRID\frontend\src\components\branch\BranchSelectModal.tsx", "TypeScript JSX", 115, 0, 0, 0, 0, 0, 9, 9, 133
+"d:\HDSP_HYBRID\frontend\src\components\branch\BranchSwitcher.tsx", "TypeScript JSX", 165, 0, 0, 0, 0, 0, 13, 14, 192
+"d:\HDSP_HYBRID\frontend\src\components\feedback\ImageCropDialog.tsx", "TypeScript JSX", 156, 0, 0, 0, 0, 0, 26, 18, 200
+"d:\HDSP_HYBRID\frontend\src\components\forms-designer\DesignerCanvas.tsx", "TypeScript JSX", 60, 0, 0, 0, 0, 0, 5, 9, 74
+"d:\HDSP_HYBRID\frontend\src\components\forms-designer\DesignerLeftPanel.tsx", "TypeScript JSX", 65, 0, 0, 0, 0, 0, 3, 10, 78
+"d:\HDSP_HYBRID\frontend\src\components\forms-designer\DesignerRightPanel.tsx", "TypeScript JSX", 73, 0, 0, 0, 0, 0, 2, 11, 86
+"d:\HDSP_HYBRID\frontend\src\components\forms-designer\DesignerStatusBar.tsx", "TypeScript JSX", 51, 0, 0, 0, 0, 0, 4, 5, 60
+"d:\HDSP_HYBRID\frontend\src\components\forms-designer\DesignerToolbar.tsx", "TypeScript JSX", 167, 0, 0, 0, 0, 0, 9, 25, 201
+"d:\HDSP_HYBRID\frontend\src\components\vendor\VendorRegisterDialog.tsx", "TypeScript JSX", 112, 0, 0, 0, 0, 0, 0, 6, 118
+"d:\HDSP_HYBRID\frontend\src\lib\api\attendance-monitoring.api.ts", "TypeScript", 0, 0, 21, 0, 0, 0, 0, 3, 24
+"d:\HDSP_HYBRID\frontend\src\lib\api\auth.api.ts", "TypeScript", 0, 0, 86, 0, 0, 0, 1, 17, 104
+"d:\HDSP_HYBRID\frontend\src\lib\api\branches.api.ts", "TypeScript", 0, 0, 23, 0, 0, 0, 4, 6, 33
+"d:\HDSP_HYBRID\frontend\src\lib\api\campaign.api.ts", "TypeScript", 0, 0, 44, 0, 0, 0, 2, 11, 57
+"d:\HDSP_HYBRID\frontend\src\lib\api\client.ts", "TypeScript", 0, 0, 85, 0, 0, 0, 9, 16, 110
+"d:\HDSP_HYBRID\frontend\src\lib\api\eic.api.ts", "TypeScript", 0, 0, 516, 0, 0, 0, 20, 89, 625
+"d:\HDSP_HYBRID\frontend\src\lib\api\his.api.ts", "TypeScript", 0, 0, 138, 0, 0, 0, 2, 20, 160
+"d:\HDSP_HYBRID\frontend\src\lib\api\license.api.ts", "TypeScript", 0, 0, 78, 0, 0, 0, 5, 15, 98
+"d:\HDSP_HYBRID\frontend\src\lib\api\loyalty.api.ts", "TypeScript", 0, 0, 140, 0, 0, 0, 1, 25, 166
+"d:\HDSP_HYBRID\frontend\src\lib\api\notification.api.ts", "TypeScript", 0, 0, 69, 0, 0, 0, 2, 13, 84
+"d:\HDSP_HYBRID\frontend\src\lib\api\reports.api.ts", "TypeScript", 0, 0, 66, 0, 0, 0, 1, 9, 76
+"d:\HDSP_HYBRID\frontend\src\lib\api\settings.api.ts", "TypeScript", 0, 0, 7, 0, 0, 0, 0, 2, 9
+"d:\HDSP_HYBRID\frontend\src\lib\api\users.api.ts", "TypeScript", 0, 0, 92, 0, 0, 0, 0, 21, 113
+"d:\HDSP_HYBRID\frontend\src\lib\audio\tokenAudio.ts", "TypeScript", 0, 0, 217, 0, 0, 0, 107, 53, 377
+"d:\HDSP_HYBRID\frontend\src\lib\generateId.ts", "TypeScript", 0, 0, 17, 0, 0, 0, 15, 1, 33
+"d:\HDSP_HYBRID\frontend\src\lib\hooks\useDebounce.ts", "TypeScript", 0, 0, 9, 0, 0, 0, 0, 2, 11
+"d:\HDSP_HYBRID\frontend\src\lib\hooks\useFullscreenToggle.ts", "TypeScript", 0, 0, 24, 0, 0, 0, 6, 4, 34
+"d:\HDSP_HYBRID\frontend\src\lib\hooks\useTokenSocket.ts", "TypeScript", 0, 0, 218, 0, 0, 0, 45, 40, 303
+"d:\HDSP_HYBRID\frontend\src\lib\store\auth.store.ts", "TypeScript", 0, 0, 67, 0, 0, 0, 10, 9, 86
+"d:\HDSP_HYBRID\frontend\src\providers\AuthProvider.tsx", "TypeScript JSX", 136, 0, 0, 0, 0, 0, 30, 23, 189
+"d:\HDSP_HYBRID\frontend\src\providers\QueryProvider.tsx", "TypeScript JSX", 30, 0, 0, 0, 0, 0, 0, 4, 34
+"d:\HDSP_HYBRID\frontend\src\providers\SessionTimeoutProvider.tsx", "TypeScript JSX", 155, 0, 0, 0, 0, 0, 12, 29, 196
+"d:\HDSP_HYBRID\frontend\src\providers\SnackbarProvider.tsx", "TypeScript JSX", 13, 0, 0, 0, 0, 0, 0, 3, 16
+"d:\HDSP_HYBRID\frontend\src\providers\ThemeProvider.tsx", "TypeScript JSX", 355, 0, 0, 0, 0, 0, 28, 32, 415
+"d:\HDSP_HYBRID\frontend\tsconfig.json", "JSON with Comments", 0, 27, 0, 0, 0, 0, 0, 1, 28
+"Total", "-", 30651, 27, 2272, 110, 8053, 26983, 1841, 3338, 73275

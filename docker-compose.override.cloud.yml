@@ -1,0 +1,39 @@
+services:
+  # ══════════════════════════════════════════════════════════════════════
+  # ZoeConnect (Next.js Application) - CLOUD ONLY
+  # ══════════════════════════════════════════════════════════════════════
+  zoeconnect:
+    # CRITICAL FIX (incremental-build audit): was ${HDSP_VERSION}, shared
+    # across all 5 app-tier images -- see docker-compose.yml's matching
+    # comment on hdsp-backend for the full rationale. zoeconnect gets its
+    # own independently-resolved version variable.
+    image: ${REGISTRY}/${IMAGE_NAMESPACE}/hdsp-zoeconnect:${ZOECONNECT_VERSION:-latest}
+    pull_policy: always
+    # No container_name -- see docker-compose.yml's "Container naming" note
+    # (same root-cause fix applied here for consistency).
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles: [full]
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: ${ZOECONNECT_BACKEND_URL:-http://hdsp-backend:3001}
+      VENDOR_PORTAL_URL: ${ZOECONNECT_VENDOR_PORTAL_URL:-http://vendor-backend:4000}
+    ports:
+      - '3010:3000'
+    networks: [hdsp_net]
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # ══════════════════════════════════════════════════════════════════════
+  # Nginx Cloud Configuration Override
+  # ══════════════════════════════════════════════════════════════════════
+  hdsp-nginx:
+    volumes:
+      - ./docker/nginx/conf.d/cloud.conf:/etc/nginx/conf.d/default.conf:ro

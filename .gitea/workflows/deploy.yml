@@ -1,0 +1,1114 @@
+name: Deploy Hybrid Architecture
+
+on:
+  push:
+    branches:
+      - hybrid-architecture
+  # CRITICAL FEATURE (force-rebuild override, 2026-08): production incident
+  # -- vendor_backend's carried-forward manifest tag no longer existed in
+  # the registry ("manifest unknown"), because vendor_backend_changed=false
+  # skipped its build. The "Validate manifest images exist in registry"
+  # step (package-bundle job) caught this correctly and is NOT being
+  # weakened -- these inputs exist so an operator can force a rebuild of
+  # one, several, or all services on demand via workflow_dispatch, instead
+  # of the pipeline having no way to recover except an unrelated code
+  # change that happens to touch that service's paths. Every flag below
+  # defaults to `false`, so a manual run with no inputs set behaves exactly
+  # like today. These are consumed in exactly ONE place --
+  # detect-changes.sh's own "Force-rebuild override" section -- which folds
+  # them into the same CHANGED[] map the normal path-based diff already
+  # populates, before any output is emitted. Nothing downstream of
+  # detect-changes (build matrix, build-images, manifest generation,
+  # validation, deploy) needs to know or care whether a service was
+  # rebuilt because its paths changed or because it was forced -- see that
+  # script's comment for the full explanation of why this single injection
+  # point is sufficient.
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild ALL images, bypassing incremental-build change detection for this run only (equivalent to enabling every force_<service> flag below)'
+        type: boolean
+        default: false
+      force_backend:
+        description: 'Force rebuild hdsp-backend, bypassing change detection for this run only'
+        type: boolean
+        default: false
+      force_frontend:
+        description: 'Force rebuild hdsp-frontend, bypassing change detection for this run only'
+        type: boolean
+        default: false
+      force_vendor_backend:
+        description: 'Force rebuild hdsp-vendor-backend, bypassing change detection for this run only'
+        type: boolean
+        default: false
+      force_vendor_frontend:
+        description: 'Force rebuild hdsp-vendor-frontend, bypassing change detection for this run only'
+        type: boolean
+        default: false
+      force_zoeconnect:
+        description: 'Force rebuild hdsp-zoeconnect, bypassing change detection for this run only'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-hybrid-architecture
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ${{ vars.REGISTRY || 'git.zoeconnect.in' }}
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'hdsp' }}
+  # This pipeline deploys to exactly one target host per SSH_HOST secret, and
+  # that host's DEPLOYMENT_MODE (self_hosted vs cloud) is otherwise invisible
+  # to CI -- it's a runtime variable deploy.sh resolves on the remote host,
+  # never referenced anywhere in this workflow. Defaulting to 'cloud'
+  # preserves the exact pre-existing behavior (every image validated) for any
+  # repo that hasn't set this var. Set `vars.DEPLOYMENT_MODE` to
+  # 'self_hosted' at the repo/environment level if the target host this
+  # pipeline deploys to only ever runs deploy.sh in self_hosted mode -- see
+  # "Validate manifest images exist in registry" below for what this
+  # actually changes.
+  DEPLOYMENT_MODE: ${{ vars.DEPLOYMENT_MODE || 'cloud' }}
+  # --- Configurable CI Behaviors ---
+  CACHE_BACKEND: local
+  ENABLE_SBOM: false
+  ENABLE_PROVENANCE: false
+
+jobs:
+  # ══════════════════════════════════════════════════════════════════════
+  # Incremental-build change detection (production-grade CI/CD audit,
+  # 2026-08). Determines exactly which of the 5 image builds this push
+  # actually needs, plus whether anything infra-only changed at all.
+  # Every path pattern used for this decision lives in ONE place --
+  # .gitea/scripts/detect-changes.sh -- not duplicated here. See that
+  # script's header comment for the full dependency-graph derivation
+  # (which service imports which packages/, and why) and for how to wire
+  # up a new service later.
+  # ══════════════════════════════════════════════════════════════════════
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend_changed: ${{ steps.changes.outputs.backend_changed }}
+      frontend_changed: ${{ steps.changes.outputs.frontend_changed }}
+      vendor_backend_changed: ${{ steps.changes.outputs.vendor_backend_changed }}
+      vendor_frontend_changed: ${{ steps.changes.outputs.vendor_frontend_changed }}
+      zoeconnect_changed: ${{ steps.changes.outputs.zoeconnect_changed }}
+      infra_changed: ${{ steps.changes.outputs.infra_changed }}
+      build_matrix: ${{ steps.changes.outputs.build_matrix }}
+      any_build_needed: ${{ steps.changes.outputs.any_build_needed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history required: the diff base is the commit before this
+          # push (github.event.before), which a shallow (fetch-depth: 1)
+          # checkout would not have available locally to diff against.
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: changes
+        env:
+          # Force-rebuild override (see this workflow's `workflow_dispatch.
+          # inputs` comment above for the full incident/rationale). On a
+          # `push` trigger `github.event.inputs` doesn't exist at all --
+          # the `|| false` fallback on every line below means a push-
+          # triggered run always resolves every one of these to the literal
+          # string "false", identical to today's behavior. Small,
+          # independent, single-value expressions -- deliberately not
+          # concatenated into this step's `run:` block itself (see the
+          # "Build and Push Image" step elsewhere in this file for why that
+          # pattern is unsafe on this act_runner version).
+          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild || 'false' }}
+          FORCE_BACKEND: ${{ github.event.inputs.force_backend || 'false' }}
+          FORCE_FRONTEND: ${{ github.event.inputs.force_frontend || 'false' }}
+          FORCE_VENDOR_BACKEND: ${{ github.event.inputs.force_vendor_backend || 'false' }}
+          FORCE_VENDOR_FRONTEND: ${{ github.event.inputs.force_vendor_frontend || 'false' }}
+          FORCE_ZOECONNECT: ${{ github.event.inputs.force_zoeconnect || 'false' }}
+        run: |
+          set -euo pipefail
+          # Belt-and-suspenders alongside the `bash "$RESOLVE_DEPS"` invocation
+          # fix in detect-changes.sh itself (see that script's own comment) --
+          # explicitly chmod both scripts here too, rather than relying solely
+          # on git's tracked executable-bit surviving whatever checkout
+          # mechanism a given runner/environment uses.
+          chmod +x .gitea/scripts/detect-changes.sh .gitea/scripts/resolve-package-deps.sh
+          .gitea/scripts/detect-changes.sh "${{ github.event.before }}" "${{ github.sha }}" | tee -a "$GITHUB_OUTPUT"
+
+  build-images:
+    needs: detect-changes
+    # Whole job is skipped (not "runs and no-ops") when nothing needs
+    # building -- e.g. a push that only touches deploy.sh/docker-compose.yml/
+    # nginx config/workflow yaml.
+    if: needs.detect-changes.outputs.any_build_needed == 'true'
+    runs-on: ubuntu-latest
+    # CRITICAL FIX (act_runner matrix-strategy abandoned entirely, 2026-08):
+    # this job used to be a `strategy.matrix` job (one job instance per
+    # service, `matrix.service_key: ${{ fromJson(needs.detect-changes.
+    # outputs.build_matrix) }}`, `max-parallel: 2`). PROVEN IN PRODUCTION,
+    # conclusively: a real run's own diagnostics showed
+    # `build_matrix=["vendor_backend"]` and `BUILD_MATRIX_RAW=["vendor_backend"]`
+    # (both correct -- confirming needs-output propagation across jobs
+    # works fine) in the SAME job instance as `SERVICE_KEY=""` and
+    # `MATRIX_JSON={}` -- i.e. `strategy.matrix`'s own `fromJson()`
+    # evaluation (a distinct phase, resolved at job-scheduling time before
+    # any step runs) silently discarded correct, valid, non-empty input.
+    # This was already the SECOND matrix shape tried here (an object-array,
+    # then a flat string-array) -- both failed identically, isolating the
+    # fault to `strategy.matrix` on this act_runner version itself, not to
+    # JSON shape and not to detect-changes.sh (independently proven correct
+    # both times).
+    #
+    # Rather than continue working around a proven act_runner
+    # incompatibility with `strategy.matrix`, this job no longer uses a
+    # matrix at all: it's a single job instance whose "Build and Push
+    # Images" step below reads detect-changes' `build_matrix` JSON array
+    # directly with `jq` and loops over it in plain bash, calling
+    # `.gitea/scripts/build-and-push-image.sh` once per service -- the
+    # EXACT SAME script the old matrix job called, zero duplicated build
+    # logic, just invoked from a bash loop instead of from N separate
+    # act_runner-scheduled job instances.
+    #
+    # TRADE-OFF, explicit: the old matrix's `max-parallel: 2` ran up to 2
+    # image builds concurrently (added after a real run showed synchronized
+    # push-retry bursts overloading the registry). A single-job bash loop
+    # builds strictly sequentially instead. This is an accepted,
+    # deliberate consequence of removing the matrix, not an oversight --
+    # it trades some wall-clock time for a build mechanism that actually
+    # works reliably on this act_runner version. If build duration becomes
+    # a problem, that's a candidate for a separate, future change (e.g.
+    # backgrounding a bounded number of loop iterations with `wait`) --
+    # not a reason to reintroduce `strategy.matrix` for `service_key`,
+    # which is proven broken here.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+
+      - name: Pre-flight Registry Health Check
+        run: |
+          set -euo pipefail
+          echo "Verifying end-to-end OCI registry health..."
+          # docker/login-action already authenticated the daemon.
+          # HYBRID ARCHITECTURE: uses the classic Docker engine build+push
+          # path, not `docker buildx build --push` — BuildKit's native
+          # registry exporter is confirmed (via the A/B test in
+          # CI_BUILD_PERFORMANCE_INVESTIGATION.md) to hang on the OAuth
+          # token fetch against this registry, while classic engine push
+          # succeeds in seconds using the exact same credentials/registry.
+          # This tiny 0-byte scratch image push doubles as a first, cheap
+          # confirmation that the classic push path itself is healthy
+          # before any real image build starts.
+          echo -e "FROM scratch\nLABEL health=ok" | docker build -t "${REGISTRY}/${IMAGE_NAMESPACE}/registry-healthcheck:latest" -
+          docker push "${REGISTRY}/${IMAGE_NAMESPACE}/registry-healthcheck:latest"
+          echo "✅ Registry health check passed via classic Docker engine push."
+
+      # Reuses a named builder ("gitea-persistent-builder") instead of letting
+      # setup-buildx-action create a brand-new anonymous docker-container
+      # builder on every run. If the underlying Gitea runner host is
+      # persistent (i.e. the docker daemon and its volumes survive between
+      # job runs), `docker buildx inspect` below will find the existing
+      # builder and its accumulated BuildKit cache/mount state instead of
+      # bootstrapping a fresh one — the diagnostics step right after prints
+      # exactly which case happened, so this can be confirmed from real run
+      # logs instead of assumed.
+      # HOTFIX (code-duplication cleanup, registry-repair feature, 2026-08):
+      # this step's body used to live inline here. Extracted to
+      # .gitea/scripts/setup-buildx-builder.sh (byte-for-byte, zero logic
+      # changes) so the new registry-repair job -- which also needs a
+      # working Buildx builder to rebuild a single service whose
+      # carried-forward tag went missing from the registry -- can call the
+      # EXACT SAME setup logic instead of a second, drifting copy. See that
+      # script's own header and the "Registry repair" job below for the
+      # full story.
+      - name: Set up / Reuse Persistent Docker Buildx Builder
+        run: |
+          chmod +x .gitea/scripts/setup-buildx-builder.sh
+          .gitea/scripts/setup-buildx-builder.sh
+
+      # ── HYBRID ARCHITECTURE: BuildKit build (--load) + classic Docker push ──
+      # Root cause confirmed via the controlled A/B test (see
+      # CI_BUILD_PERFORMANCE_INVESTIGATION.md): BuildKit's native registry
+      # exporter (`docker buildx build --push`) consistently hangs 200-850s
+      # on the OAuth token fetch (POST /v2/token) against this self-hosted
+      # Gitea registry and times out, while the exact same registry/
+      # credentials/repository succeed in 2-5s via classic `docker push`
+      # (both a plain classic build+push, and a BuildKit build loaded into
+      # the local daemon then pushed classically). The registry itself is
+      # healthy — this isolates the failure to BuildKit's own registry
+      # exporter implementation. Rather than continue debugging that
+      # implementation, this step permanently routes every push through
+      # the classic Docker engine's registry client instead, while still
+      # using BuildKit (via --load) for the actual build: multi-stage
+      # Dockerfiles, `RUN --mount=type=cache`, and the persistent
+      # local/registry build cache all continue to work exactly as before
+      # — only the final registry upload mechanism changes.
+      # HOTFIX (act_runner interpolation bug, 2026-08): this step's shell
+      # body used to live inline here (~900 lines, many embedded `${{ }}`
+      # expressions in comments/strings/shell code/heredocs). PROVEN IN
+      # PRODUCTION: act_runner's Interpolate() collapses an entire run-block
+      # string into ONE format(...) call via rewriteSubExpression() before
+      # handing it to exprparser.format()'s hand-rolled brace parser — this
+      # step died with "Unable to interpolate expression format(...)" before
+      # bash ever started (the shell was never launched). Root-caused
+      # against nektos/act's actual source (which act_runner vendors):
+      # pkg/runner/expression.go's Interpolate()/rewriteSubExpression() and
+      # pkg/exprparser/functions.go's format(). Relocated the entire shell
+      # body, byte-for-byte (every comment, every safeguard, zero logic
+      # changes), to .gitea/scripts/build-and-push-image.sh — see that
+      # script's own header for the full explanation. This step's `run:`
+      # now contains NO `${{ }}` at all, so Interpolate() short-circuits
+      # immediately for it; every previously-inline expression is instead
+      # supplied below via `env:` — each one small, independent, and
+      # evaluated on its own, never concatenated into one giant format()
+      # call.
+      # CRITICAL FIX (act_runner matrix-strategy abandoned entirely,
+      # 2026-08): this step used to run once per act_runner-scheduled
+      # matrix job instance, with SERVICE_KEY sourced from
+      # `matrix.service_key` -- proven broken on this act_runner version
+      # (see this job's own comment above for the full evidence trace).
+      # Now a single step, run once, that reads detect-changes' JSON array
+      # directly with `jq` and loops over it in plain bash, invoking
+      # `.gitea/scripts/build-and-push-image.sh` once per service with
+      # SERVICE_KEY set as a real, concrete shell loop variable -- never
+      # matrix-derived. `set -euo pipefail` at the top of this loop
+      # preserves the old matrix's `fail-fast: true` semantics: the first
+      # service build/push failure aborts the whole step (and job)
+      # immediately, rather than silently continuing to the next service.
+      #
+      # MATRIX_JSON is no longer passed at all -- build-and-push-image.sh
+      # no longer references it (see that script's own header for why:
+      # SERVICE_KEY is now the sole canonical input, and neither calling
+      # context -- this loop, or registry-repair's -- has a real
+      # `strategy.matrix` context to dump in the first place).
+      - name: Build and Push Images
+        env:
+          BUILD_MATRIX_RAW: ${{ needs.detect-changes.outputs.build_matrix }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
+          CACHE_BACKEND: ${{ env.CACHE_BACKEND }}
+          ENABLE_SBOM: ${{ env.ENABLE_SBOM }}
+          ENABLE_PROVENANCE: ${{ env.ENABLE_PROVENANCE }}
+          # GITHUB_SHA / GITHUB_REPOSITORY / GITHUB_SERVER_URL / GITHUB_WORKSPACE
+          # are deliberately NOT declared here — GITHUB_-prefixed names are
+          # reserved by the Actions runner and cannot be overridden via a
+          # workflow's `env:`. They're already auto-injected into every
+          # step's shell with these exact values; the script reads them
+          # directly. See the script's header comment for the full note.
+        run: |
+          set -euo pipefail
+          chmod +x .gitea/scripts/build-and-push-image.sh
+          echo "Services to build this run (detect-changes.sh's build_matrix): $BUILD_MATRIX_RAW"
+          while IFS= read -r svc; do
+            [ -n "$svc" ] || continue
+            echo "═══════════ Building and pushing: $svc ═══════════"
+            SERVICE_KEY="$svc" .gitea/scripts/build-and-push-image.sh
+          done < <(echo "$BUILD_MATRIX_RAW" | jq -r '.[]')
+
+  # NOTE: a standalone `verify-images` job (docker manifest inspect against
+  # every image, with retries) used to run here. Removed: it opened a fresh
+  # registry connection independent of the push that already succeeded in
+  # build-images, and its read-side timeouts were failing the pipeline for
+  # images that were already confirmed present and correct. build-images
+  # already gets a successful digest back from every `docker push` for the
+  # SHA tag and all alias tags, and deploy's own `docker pull` on the target
+  # host constitutes a stronger, naturally-occurring verification than a
+  # standalone manifest-inspect step ever was. (package-bundle below no
+  # longer performs its own manifest lookup either — see that job's
+  # comments.)
+
+  # ══════════════════════════════════════════════════════════════════════
+  # Registry repair (self-healing carried-forward tags, 2026-08).
+  #
+  # PRODUCTION INCIDENT this exists to fix: package-bundle's "Validate
+  # manifest images exist in registry" step correctly refused to deploy a
+  # release whose manifest.yml carried forward vendor_backend's previous
+  # tag (263055a) after that image had gone missing from the registry
+  # ("manifest unknown" on `docker pull`) -- vendor_backend_changed=false
+  # this run, so build-images never rebuilt it, and there was no
+  # mechanism to recover except a manual operator rebuild.
+  #
+  # WHERE THIS RUNS AND WHY (explicit design decision, not the first idea
+  # tried): between build-images and package-bundle, as its OWN job --
+  # NOT inside package-bundle. package-bundle's job is packaging a release
+  # (manifest.yml, tarball, checksums); building images is build-images'
+  # job. Making package-bundle responsible for building images too would
+  # give it two unrelated responsibilities and require it to gain Buildx
+  # setup it doesn't otherwise need. Also explicitly NOT implemented by
+  # re-running or re-`workflow_dispatch`-ing this workflow: this file's
+  # own `concurrency: { group: deploy-hybrid-architecture, cancel-in-
+  # progress: true }` would cancel a self-triggered second run out from
+  # under the first one still in flight -- a self-inflicted deadlock, not
+  # a repair. This job's `needs: [detect-changes, build-images]` guarantees
+  # build-images (and its Buildx builder / lock usage) has fully finished,
+  # success or skipped, before this job's own Buildx usage (via the same
+  # shared .gitea/scripts/setup-buildx-builder.sh + same lock file) ever
+  # starts -- no concurrent access to the same builder is possible.
+  #
+  # WHAT IT DOES: for every service build-images did NOT rebuild this run
+  # (CHANGED[svc]=false -- a service it DID rebuild is already known-good,
+  # re-checking it would just re-download something this run already
+  # proved exists), resolves the exact tag that would be carried forward
+  # -- via manifest-lib.sh's resolve_carry_forward_tag(), the SAME
+  # function package-bundle's own resolve_tag() calls below, so the two
+  # can never disagree about what "carried forward" means for a service
+  # -- and confirms with a real `docker pull` that the image still exists.
+  # A missing one gets rebuilt from THIS run's own commit via
+  # .gitea/scripts/build-and-push-image.sh -- the EXACT SAME script
+  # build-images uses, zero duplicated build logic -- tagged with this
+  # run's SHORT_SHA (identical convention to the force-rebuild override
+  # above), then re-pulled once to confirm the push landed.
+  #
+  # FAILURE POLICY (explicit product decision): a repair build that fails
+  # hard-fails this job, and therefore blocks package-bundle and deploy
+  # entirely -- see this job's `if:` and package-bundle's `needs:`/`if:`
+  # below. No fallback to the old (missing) tag, no fallback to `latest`,
+  # no fallback to a branch alias once a repair attempt has begun.
+  # Deploying a release where some services come from the current commit
+  # and others come from a historical image that no longer exists is
+  # exactly the inconsistent-release scenario "Validate manifest images
+  # exist in registry" exists to prevent -- a failed repair must stop the
+  # pipeline exactly as a failed initial build already does, not degrade
+  # to something quieter.
+  #
+  # WHAT DOESN'T CHANGE: detect-changes.sh's path-based change detection
+  # is completely untouched by this feature -- it has no idea repair
+  # exists, and doesn't need to. build-images' matrix, the force-rebuild
+  # override, release immutability, the latest-packaged pointer, rollback,
+  # cleanup, and cache behavior are all equally untouched -- this job only
+  # ever influences which TAG package-bundle writes for an unchanged
+  # service, via its own outputs below, exactly the same shape as
+  # detect-changes' *_changed outputs already influence that same
+  # decision.
+  # ══════════════════════════════════════════════════════════════════════
+  registry-repair:
+    needs: [detect-changes, build-images]
+    # Runs regardless of whether build-images actually built anything --
+    # in fact the highest-value case is exactly when build-images built
+    # NOTHING (a fully infra-only push): every one of the 5 services is
+    # then a carried-forward tag, and this is the ONLY job in the entire
+    # pipeline that will touch the registry to confirm any of them still
+    # exist before package-bundle writes them into a new manifest.yml.
+    if: |
+      always() &&
+      needs.detect-changes.result == 'success' &&
+      (needs.build-images.result == 'success' || needs.build-images.result == 'skipped')
+    runs-on: ubuntu-latest
+    outputs:
+      backend_repaired: ${{ steps.repair.outputs.backend_repaired }}
+      frontend_repaired: ${{ steps.repair.outputs.frontend_repaired }}
+      vendor_backend_repaired: ${{ steps.repair.outputs.vendor_backend_repaired }}
+      vendor_frontend_repaired: ${{ steps.repair.outputs.vendor_frontend_repaired }}
+      zoeconnect_repaired: ${{ steps.repair.outputs.zoeconnect_repaired }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0 for the same reason build-images' own checkout
+          # uses it: build-and-push-image.sh (invoked below, per-service,
+          # exactly as build-images invokes it) runs `git describe --tags
+          # --exact-match`, which needs real tag history to be available.
+          fetch-depth: 0
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+
+      # --- Fetch previous release manifest (read-only) --------------------
+      # IDENTICAL command to package-bundle's own step of the same name --
+      # see that step's extensive comment for the full incident history of
+      # why this reads the latest-packaged pointer, not mtime, and why a
+      # plain `ssh` capture is used instead of an action. Intentionally
+      # duplicated (not factored into a third shared script) rather than,
+      # say, having this job pass its result to package-bundle: it's a
+      # single read-only SSH command, not build logic -- the actual
+      # decision logic that must never drift between the two jobs
+      # (resolve_carry_forward_tag()) already lives in one place,
+      # manifest-lib.sh, and both jobs call it against their own
+      # independently-fetched copy of the same source of truth (the
+      # live host's current release manifest).
+      - name: Fetch previous release manifest (read-only)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -uo pipefail  # deliberately NOT -e: a failure here must degrade, not abort the job
+          mkdir -p /tmp/ssh_readonly
+          printf '%s\n' "$SSH_PRIVATE_KEY" > /tmp/ssh_readonly/deploy_key
+          chmod 600 /tmp/ssh_readonly/deploy_key
+          if ssh -i /tmp/ssh_readonly/deploy_key -p "${SSH_PORT}" \
+               -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes \
+               "${SSH_USER}@${SSH_HOST}" \
+               'if [ -L /opt/hdsp/releases/latest-packaged ]; then latest_release=$(readlink -f /opt/hdsp/releases/latest-packaged); echo "Using latest-packaged pointer (write-once, immune to rollback/mtime activity): $latest_release" >&2; else latest_release=$(ls -1d /opt/hdsp/releases/release-* 2>/dev/null | sort -r | head -1); echo "latest-packaged pointer not found (pre-migration host) -- falling back to NAME-sorted (not mtime) scan: $latest_release" >&2; fi; if [ -n "$latest_release" ] && [ -f "$latest_release/manifest.yml" ]; then cat "$latest_release/manifest.yml"; else echo "No release directory with a manifest.yml found under /opt/hdsp/releases/ yet." >&2; exit 1; fi' \
+               > previous_manifest.yml 2>/tmp/ssh_readonly/stderr.log; then
+            echo "✅ Fetched previous release manifest ($(wc -l < previous_manifest.yml) lines) to check carried-forward tags against the registry."
+            cat /tmp/ssh_readonly/stderr.log 2>/dev/null || true
+          else
+            echo "⚠️  Could not fetch a previous release manifest -- first-ever deployment, or host unreachable:"
+            cat /tmp/ssh_readonly/stderr.log 2>/dev/null || true
+            echo "This is not fatal here either -- with no previous manifest, every unchanged service below has nothing on record to validate against and this step's loop simply has nothing to check for it (package-bundle's own resolve_tag() will fall back to the 'hybrid-architecture' branch alias for it, exactly as it already does today)."
+            : > previous_manifest.yml
+          fi
+          rm -f /tmp/ssh_readonly/deploy_key
+          exit 0
+
+      - name: Set up / Reuse Persistent Docker Buildx Builder
+        run: |
+          chmod +x .gitea/scripts/setup-buildx-builder.sh
+          .gitea/scripts/setup-buildx-builder.sh
+
+      - name: Pre-flight Registry Health Check
+        # Identical purpose to build-images' own step of the same name: a
+        # tiny 0-byte scratch push doubles as a first, cheap confirmation
+        # that the classic push path is healthy before any real repair
+        # build starts. Included here too because this job can run even
+        # when build-images built nothing at all this run (a fully
+        # infra-only push) -- in that exact case, this is the FIRST thing
+        # in the whole pipeline run to touch the registry's push path, so
+        # build-images having already checked it earlier in the SAME run
+        # cannot be assumed.
+        run: |
+          set -euo pipefail
+          echo "Verifying end-to-end OCI registry health..."
+          echo -e "FROM scratch\nLABEL health=ok" | docker build -t "${REGISTRY}/${IMAGE_NAMESPACE}/registry-healthcheck:latest" -
+          docker push "${REGISTRY}/${IMAGE_NAMESPACE}/registry-healthcheck:latest"
+          echo "✅ Registry health check passed via classic Docker engine push."
+
+      # TEMPORARY DIAGNOSTIC (act_runner interpolation bisection, 2026-08):
+      # isolates whether the JOB/step env-var wiring itself is fine (this
+      # step succeeding proves act_runner can interpolate THIS job's small
+      # env: block and start bash normally) versus the failure being
+      # specific to the large "Detect and repair..." run: block immediately
+      # below. Remove once the real cause is confirmed from a live run's
+      # logs.
+      - name: Debug registry repair
+        env:
+          BACKEND_CHANGED: ${{ needs.detect-changes.outputs.backend_changed }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
+        run: |
+          set -x
+          echo "BACKEND_CHANGED=$BACKEND_CHANGED"
+          echo "REGISTRY=$REGISTRY"
+          echo "IMAGE_NAMESPACE=$IMAGE_NAMESPACE"
+
+      # HOTFIX (act_runner interpolation bug, 2026-08): this step's shell
+      # body used to live inline here -- a run: block with real shell logic
+      # (a loop, an associative array, a nested function call) sitting next
+      # to `${{ }}` expressions, the exact pattern already proven to break
+      # act_runner's Interpolate()/rewriteSubExpression() in "Build and
+      # Push Image" (see that step's own comment and
+      # build-and-push-image.sh's header for the full source-level trace).
+      # Relocated byte-for-byte, zero logic changes, to
+      # .gitea/scripts/registry-repair.sh -- see that script's own header.
+      # This step's `run:` now contains NO `${{ }}` at all; every
+      # previously-inline expression is supplied below via `env:` instead,
+      # each one small and independent.
+      - name: Detect and repair missing carried-forward images
+        id: repair
+        env:
+          BACKEND_CHANGED: ${{ needs.detect-changes.outputs.backend_changed }}
+          FRONTEND_CHANGED: ${{ needs.detect-changes.outputs.frontend_changed }}
+          VENDOR_BACKEND_CHANGED: ${{ needs.detect-changes.outputs.vendor_backend_changed }}
+          VENDOR_FRONTEND_CHANGED: ${{ needs.detect-changes.outputs.vendor_frontend_changed }}
+          ZOECONNECT_CHANGED: ${{ needs.detect-changes.outputs.zoeconnect_changed }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
+          CACHE_BACKEND: ${{ env.CACHE_BACKEND }}
+          ENABLE_SBOM: ${{ env.ENABLE_SBOM }}
+          ENABLE_PROVENANCE: ${{ env.ENABLE_PROVENANCE }}
+        run: |
+          chmod +x .gitea/scripts/registry-repair.sh
+          .gitea/scripts/registry-repair.sh
+
+  package-bundle:
+    needs: [detect-changes, build-images, registry-repair]
+    # CRITICAL FIX (incremental-build audit): build-images is now correctly
+    # SKIPPED (not failed) on an infra-only push -- but a job's default
+    # `if:` is implicitly `success()`, which treats a skipped dependency the
+    # same as a failed one and would also skip this job, silently breaking
+    # infra-only deploys entirely (requirement: infra-only changes must
+    # still package + deploy, just without rebuilding anything). `always()`
+    # bypasses that default, and the explicit result checks below restore
+    # the safety it would otherwise remove: this still only runs if
+    # detect-changes genuinely succeeded, and if build-images either
+    # succeeded OR was deliberately skipped -- a real build FAILURE still
+    # correctly blocks packaging/deployment, exactly as before.
+    #
+    # CRITICAL FEATURE (registry-repair, 2026-08): registry-repair is NOT
+    # skippable the way build-images is -- it always runs (see its own
+    # `if:`) and always has real work to do (checking every unchanged
+    # service's carried-forward tag), so unlike build-images this only
+    # ever needs the plain 'success' check, no 'skipped' branch. Its
+    # explicit failure policy (hard-fail on a repair build failure, no
+    # fallback -- see that job's own comment) means requiring its success
+    # here is what actually enforces that policy at the pipeline level:
+    # package-bundle (and therefore deploy) simply never runs at all if a
+    # repair failed.
+    if: |
+      always() &&
+      needs.detect-changes.result == 'success' &&
+      (needs.build-images.result == 'success' || needs.build-images.result == 'skipped') &&
+      needs.registry-repair.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # CRITICAL FEATURE (release-aware health checks, 2026-08): runs
+      # BEFORE this job ever generates a manifest.yml or touches the
+      # registry -- a regression in manifest-lib.sh's reader functions
+      # (the exact code deploy.sh/rollback.sh now depend on to avoid
+      # hanging on a URL a historical release can't satisfy) fails the
+      # build here, loudly, instead of surfacing later as an opaque
+      # deploy-time or rollback-time timeout.
+      - name: Run manifest-lib.sh regression tests
+        run: bash infrastructure/scripts/tests/test-manifest-health.sh
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+
+      # --- Fetch previous release manifest (read-only) --------------------
+      # CRITICAL FIX (incremental-build audit): a service skipped this run
+      # (not rebuilt) must still resolve to a real, previously-valid image
+      # tag in the new manifest.yml -- never empty, never "latest", and
+      # critically, never a floating branch alias either (that would silently
+      # break rollback's pinning guarantee: an old release bundle rolled
+      # back to later would then deploy whatever the alias currently points
+      # to, not what was actually running when that release was live). The
+      # only source that's actually correct is the tag chain itself --
+      # carrying forward the exact tag the currently-deployed release
+      # recorded for that service. Reads (never writes) the live host's
+      # current release manifest over a plain `ssh cat`, deliberately not
+      # appleboy/ssh-action here: that action doesn't reliably expose a
+      # remote command's stdout as a step output across versions, and a
+      # plain `ssh` command captured directly to a local file is simpler,
+      # more transparent, and easier to reason about than trusting an
+      # action's output-capture behavior for something this load-bearing.
+      # Failure here (host unreachable, no previous release yet) is NOT
+      # fatal -- it degrades to the safe branch-alias fallback inside
+      # "Package Deployment Assets" below, logged loudly, never silent.
+      #
+      # CRITICAL FIX (production incident, 2026-08): this used to read
+      # /opt/hdsp/current/manifest.yml -- the LAST SUCCESSFULLY DEPLOYED
+      # release. That's wrong for tag carry-forward specifically: a
+      # service's own build/push (this workflow's build-images job)
+      # succeeds or fails completely independently of whether deploy.sh
+      # itself later converges, so a stalled /opt/hdsp/current silently
+      # discarded real, already-pushed, already-correct image tags,
+      # potentially for days.
+      #
+      # CRITICAL FIX #2 (release-immutability architecture, 2026-08): the
+      # very next fix above -- reading the most recently PACKAGED release
+      # by `ls -1dt` (mtime) instead -- turned out to have its own, worse
+      # failure mode: mtime is not an append-only, write-once field. This
+      # step now reads the "latest-packaged" pointer maintained exclusively
+      # by the "Execute remote deployment" step below (a plain symlink,
+      # repointed exactly once per run, immediately after extraction,
+      # unconditionally -- see that step's comment). That pointer is never
+      # touched by anything else: not rollback.sh, not deploy.sh's own
+      # release-pruning cleanup, nothing. Falls back to a NAME-sorted
+      # (never mtime-sorted) directory scan only if the pointer doesn't
+      # exist yet -- release directory names already encode their creation
+      # time as a fixed-width `release-YYYYMMDDHHMMSS-SHORTSHA` prefix, so
+      # lexicographic sort is exactly chronological order and depends on
+      # nothing mutable. This fallback exists solely to handle hosts with
+      # pre-existing release-* directories from before this fix shipped;
+      # every run after the first will always find the pointer and never
+      # need it.
+      - name: Fetch previous release manifest (read-only)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -uo pipefail  # deliberately NOT -e: a failure here must degrade, not abort the job
+          mkdir -p /tmp/ssh_readonly
+          printf '%s\n' "$SSH_PRIVATE_KEY" > /tmp/ssh_readonly/deploy_key
+          chmod 600 /tmp/ssh_readonly/deploy_key
+          if ssh -i /tmp/ssh_readonly/deploy_key -p "${SSH_PORT}" \
+               -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes \
+               "${SSH_USER}@${SSH_HOST}" \
+               'if [ -L /opt/hdsp/releases/latest-packaged ]; then latest_release=$(readlink -f /opt/hdsp/releases/latest-packaged); echo "Using latest-packaged pointer (write-once, immune to rollback/mtime activity): $latest_release" >&2; else latest_release=$(ls -1d /opt/hdsp/releases/release-* 2>/dev/null | sort -r | head -1); echo "latest-packaged pointer not found (pre-migration host) -- falling back to NAME-sorted (not mtime) scan: $latest_release" >&2; fi; if [ -n "$latest_release" ] && [ -f "$latest_release/manifest.yml" ]; then cat "$latest_release/manifest.yml"; else echo "No release directory with a manifest.yml found under /opt/hdsp/releases/ yet." >&2; exit 1; fi' \
+               > previous_manifest.yml 2>/tmp/ssh_readonly/stderr.log; then
+            echo "✅ Fetched previous release manifest ($(wc -l < previous_manifest.yml) lines) for skipped-service tag reuse."
+            cat /tmp/ssh_readonly/stderr.log 2>/dev/null || true
+          else
+            echo "⚠️  Could not fetch a previous release manifest -- first-ever deployment, or host unreachable:"
+            cat /tmp/ssh_readonly/stderr.log 2>/dev/null || true
+            echo "This is not fatal -- any skipped service will fall back to the 'hybrid-architecture' tag below."
+            : > previous_manifest.yml
+          fi
+          rm -f /tmp/ssh_readonly/deploy_key
+          exit 0
+
+      - name: Package Deployment Assets
+        run: |
+          set -euo pipefail
+          echo "Packaging deployment assets..."
+          mkdir -p deployment-bundle/infrastructure/scripts
+          mkdir -p deployment-bundle/docker/nginx
+          mkdir -p deployment-bundle/docker/nginx/conf.d
+          
+          cp docker-compose.yml deployment-bundle/
+          cp docker-compose.override.cloud.yml deployment-bundle/
+          cp docker-compose.override.selfhosted.yml deployment-bundle/
+          
+          cp docker/nginx/nginx.conf deployment-bundle/docker/nginx/
+          cp docker/nginx/conf.d/cloud.conf deployment-bundle/docker/nginx/conf.d/
+          cp docker/nginx/conf.d/self-hosted.conf deployment-bundle/docker/nginx/conf.d/
+          
+          cp infrastructure/scripts/deploy.sh deployment-bundle/infrastructure/scripts/
+          cp infrastructure/scripts/rollback.sh deployment-bundle/infrastructure/scripts/
+          cp infrastructure/scripts/manifest-lib.sh deployment-bundle/infrastructure/scripts/
+          cp infrastructure/scripts/health-lib.sh deployment-bundle/infrastructure/scripts/
+          # Belt-and-suspenders: don't rely solely on git's committed mode
+          # surviving checkout -> cp -> tar -> transfer -> extraction intact.
+          # Both scripts are invoked by direct path execution (not `bash
+          # script.sh`), so they require the executable bit. Setting it here
+          # makes the bundle itself self-consistent regardless of git's
+          # tracked mode; the `deploy` job also chmods +x after extraction
+          # as a second, independent guarantee (see that job's comments).
+          # manifest-lib.sh / health-lib.sh need no execute bit -- both are
+          # sourced, never run directly.
+          chmod +x deployment-bundle/infrastructure/scripts/deploy.sh
+          chmod +x deployment-bundle/infrastructure/scripts/rollback.sh
+          echo "${{ github.sha }}" > deployment-bundle/VERSION
+
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          # NOTE: image digests used to be looked up here via a
+          # `docker manifest inspect` helper (get_digest()) — removed.
+          # That call opens a fresh registry connection independent of the
+          # push/pull path and was hitting the same intermittent
+          # "context deadline exceeded" / "Client.Timeout exceeded while
+          # awaiting headers" read timeouts that caused the verify-images
+          # job to be removed entirely. The digest was informational only:
+          # nothing in this bundle or the deploy script reads it back.
+          # Image identity/availability is already established by
+          # build-images' successful `docker push` for each tag and is
+          # re-confirmed naturally by deploy's own `docker pull` — no
+          # separate registry query adds real deployment safety here.
+          #
+          # release.short_sha remains this run's own commit identifier --
+          # used for release-directory naming/logging only, decoupled from
+          # any individual image's actual deployed tag (see below).
+          #
+          # CRITICAL FIX (incremental-build audit): each images.*.tag is now
+          # resolved INDEPENDENTLY per service instead of all five always
+          # sharing this run's $SHORT_SHA. A service detect-changes marked
+          # unchanged was never rebuilt or pushed this run -- writing
+          # $SHORT_SHA for it anyway would point at an image that doesn't
+          # exist in the registry at all. resolve_tag() below carries
+          # forward the exact tag the CURRENTLY-DEPLOYED release already
+          # has for that service (fetched read-only above), chaining
+          # correctly across any number of consecutive skips. Falls back to
+          # the 'hybrid-architecture' branch alias (never 'latest') only if
+          # there's truly no previous record to carry forward from (first
+          # deployment ever, or the read-only fetch above failed) -- logged
+          # loudly either way, never silent.
+          #
+          # CRITICAL FEATURE (registry-repair, 2026-08): resolve_tag() now
+          # takes a THIRD argument, "repaired" -- true when the
+          # registry-repair job (which already ran, before this job, per
+          # this job's own `needs:`) found this service's carried-forward
+          # tag missing from the registry and rebuilt it from this run's
+          # own commit. A repaired service is treated exactly like a
+          # changed one: use $SHORT_SHA, not whatever prev_tag would have
+          # resolved to (that tag is precisely the one registry-repair just
+          # proved doesn't exist). The carried-forward lookup itself now
+          # goes through manifest-lib.sh's resolve_carry_forward_tag() --
+          # the SAME function registry-repair calls -- instead of a second,
+          # inline copy of the same extract_image_tag() logic, so this job
+          # and registry-repair can never compute a different answer for
+          # what "carried forward" means for a given service.
+          source infrastructure/scripts/manifest-lib.sh
+
+          resolve_tag() {
+            local service_key="$1"
+            local changed="$2"
+            local repaired="$3"
+            if [ "$changed" = "true" ] || [ "$repaired" = "true" ]; then
+              echo "$SHORT_SHA"
+              return
+            fi
+            local prev_tag=""
+            prev_tag=$(resolve_carry_forward_tag previous_manifest.yml "$service_key" || true)
+            if [ -n "$prev_tag" ]; then
+              echo "$prev_tag"
+            else
+              echo "No previous tag on record for '$service_key' -- falling back to the 'hybrid-architecture' branch alias." >&2
+              echo "hybrid-architecture"
+            fi
+          }
+
+          BACKEND_TAG=$(resolve_tag backend "${{ needs.detect-changes.outputs.backend_changed }}" "${{ needs.registry-repair.outputs.backend_repaired }}")
+          FRONTEND_TAG=$(resolve_tag frontend "${{ needs.detect-changes.outputs.frontend_changed }}" "${{ needs.registry-repair.outputs.frontend_repaired }}")
+          VENDOR_BACKEND_TAG=$(resolve_tag vendor_backend "${{ needs.detect-changes.outputs.vendor_backend_changed }}" "${{ needs.registry-repair.outputs.vendor_backend_repaired }}")
+          VENDOR_FRONTEND_TAG=$(resolve_tag vendor_frontend "${{ needs.detect-changes.outputs.vendor_frontend_changed }}" "${{ needs.registry-repair.outputs.vendor_frontend_repaired }}")
+          ZOECONNECT_TAG=$(resolve_tag zoeconnect "${{ needs.detect-changes.outputs.zoeconnect_changed }}" "${{ needs.registry-repair.outputs.zoeconnect_repaired }}")
+
+          echo "Resolved image tags for this release:"
+          echo "  backend:         $BACKEND_TAG  (changed=${{ needs.detect-changes.outputs.backend_changed }})"
+          echo "  frontend:        $FRONTEND_TAG  (changed=${{ needs.detect-changes.outputs.frontend_changed }})"
+          echo "  vendor_backend:  $VENDOR_BACKEND_TAG  (changed=${{ needs.detect-changes.outputs.vendor_backend_changed }})"
+          echo "  vendor_frontend: $VENDOR_FRONTEND_TAG  (changed=${{ needs.detect-changes.outputs.vendor_frontend_changed }})"
+          echo "  zoeconnect:      $ZOECONNECT_TAG  (changed=${{ needs.detect-changes.outputs.zoeconnect_changed }})"
+
+          # CRITICAL FEATURE (release-aware health checks, 2026-08): this
+          # health: block is the single source of truth for every
+          # service's readiness/liveness URL going forward -- deploy.sh
+          # and rollback.sh no longer hardcode a static
+          # SERVICE_READINESS_URL map (see their own matching comments).
+          # A real incident showed that static map's implicit assumption
+          # -- "every release, including ones from before this endpoint
+          # existed, can answer this URL" -- is false in general. Every
+          # release now declares its OWN endpoints (or, for a service with
+          # none, an empty string) here, in ITS OWN manifest.yml, at the
+          # exact moment it's packaged. These values are the actual,
+          # currently-hardcoded URLs already proven correct in production
+          # (moved here from deploy.sh, not invented) -- backend/
+          # vendor_backend have real `ready`+`live` endpoints (see
+          # backend/src/app.controller.ts and vendor-portal/backend's
+          # health.controller.ts); frontend/vendor_frontend/zoeconnect
+          # only ever had a single root/health-page URL checked as
+          # "ready" and no distinct liveness probe, so `live` is left
+          # empty for them rather than invented.
+          echo "Recording this release's health endpoints:"
+          echo "  backend:         ready=http://localhost:3001/api/v1/health/ready live=http://localhost:3001/api/v1/health/live"
+          echo "  vendor_backend:  ready=http://localhost:4000/api/health/ready live=http://localhost:4000/api/health/live"
+          echo "  frontend:        ready=http://localhost:3000/ live=(none)"
+          echo "  vendor_frontend: ready=http://localhost:4001/ live=(none)"
+          echo "  zoeconnect:      ready=http://localhost:3010/api/health live=(none)"
+
+          cat <<EOF > deployment-bundle/manifest.yml
+          release:
+            commit: ${{ github.sha }}
+            short_sha: $SHORT_SHA
+            branch: hybrid-architecture
+            built_at: "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            pipeline: ${{ github.run_id }}
+            actor: ${{ github.actor }}
+
+          images:
+            backend:
+              tag: $BACKEND_TAG
+            frontend:
+              tag: $FRONTEND_TAG
+            vendor_backend:
+              tag: $VENDOR_BACKEND_TAG
+            vendor_frontend:
+              tag: $VENDOR_FRONTEND_TAG
+            zoeconnect:
+              tag: $ZOECONNECT_TAG
+
+          health:
+            backend:
+              ready: "http://localhost:3001/api/v1/health/ready"
+              live: "http://localhost:3001/api/v1/health/live"
+            vendor_backend:
+              ready: "http://localhost:4000/api/health/ready"
+              live: "http://localhost:4000/api/health/live"
+            frontend:
+              ready: "http://localhost:3000/"
+              live: ""
+            vendor_frontend:
+              ready: "http://localhost:4001/"
+              live: ""
+            zoeconnect:
+              ready: "http://localhost:3010/api/health"
+              live: ""
+          EOF
+
+          cd deployment-bundle
+          # CRITICAL FIX: must exclude CHECKSUMS itself from the file list it
+          # hashes. Bash opens/truncates CHECKSUMS (the `>` redirect) before
+          # `find` ever runs, so the empty file already exists on disk when
+          # `find .` walks the tree and gets included in its own input —
+          # sha256sum then hashes a mid-write snapshot of a file that keeps
+          # growing as later entries are appended, so the recorded hash for
+          # ./CHECKSUMS can never match the file's own final content. This
+          # is unconditional and file-order-independent: it's mathematically
+          # impossible for a file to correctly contain a hash of its own
+          # final content. VERSION and manifest.yml are safe to include —
+          # both are fully written and closed before this line runs.
+          find . -type f ! -name CHECKSUMS -exec sha256sum {} + > CHECKSUMS
+          
+          REQUIRED_FILES=(
+            "docker-compose.yml"
+            "docker-compose.override.cloud.yml"
+            "docker-compose.override.selfhosted.yml"
+            "docker/nginx/nginx.conf"
+            "docker/nginx/conf.d/cloud.conf"
+            "docker/nginx/conf.d/self-hosted.conf"
+            "infrastructure/scripts/deploy.sh"
+            "infrastructure/scripts/rollback.sh"
+            "infrastructure/scripts/manifest-lib.sh"
+            "infrastructure/scripts/health-lib.sh"
+            "VERSION"
+            "CHECKSUMS"
+            "manifest.yml"
+          )
+          
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "Error: Required deployment asset $file is missing from the bundle!"
+              exit 1
+            fi
+          done
+          
+          tar -czf ../deployment-bundle.tar.gz .
+          
+          # Post-packaging verification
+          if ! tar -tzf ../deployment-bundle.tar.gz | grep -E '^\.?/?docker/nginx/nginx\.conf$' >/dev/null; then
+            echo -e "\033[0;31m[ERROR]\033[0m deployment-bundle.tar.gz is incomplete! Missing docker/nginx/nginx.conf." >&2
+            exit 1
+          fi
+          echo "✅ Post-packaging verification passed: deployment bundle contains nginx.conf."
+
+      # --- Manifest validation (production safeguard) ----------------------
+      # CRITICAL FIX (incremental-build follow-up review): a manifest.yml
+      # that parses correctly can still point at an image tag that doesn't
+      # actually exist in the registry -- a failed/partial push earlier in
+      # this same run, a tag that got deleted from the registry after the
+      # fact, or (for a carried-forward tag) a previous release's image
+      # that was since pruned. None of those are caught by anything above:
+      # CHECKSUMS verifies the BUNDLE's own integrity, not that the images
+      # it references are real. Without this step, a corrupted manifest
+      # only surfaces once deploy.sh runs `docker compose pull` on the
+      # remote host -- i.e. mid-deployment, after the old release has
+      # already started being torn down. Checking here, before the bundle
+      # is even transferred, means a bad manifest fails loudly in CI and
+      # the currently-running release is never touched.
+      #
+      # Uses `docker pull` (NOT `docker manifest inspect`) deliberately:
+      # this deployment's registry is self-hosted and some self-hosted
+      # registry implementations don't fully support the Docker Manifest
+      # API even though a plain pull works fine against them -- `manifest
+      # inspect` produced false negatives there. `docker pull` is also a
+      # more faithful check anyway: it's the exact operation the remote
+      # host itself performs (deploy.sh's `docker compose pull`), so this
+      # step validates precisely the thing that later has to succeed for
+      # real, not just a same-outcome-in-theory proxy for it.
+      #
+      # Services rebuilt THIS run are skipped here on purpose: build-images
+      # already pushed them and confirmed the push succeeded (that job
+      # fails the workflow otherwise), so re-pulling them here would just
+      # re-download an image this same run already proved exists, for no
+      # additional safety. Only services with a CARRIED-FORWARD tag --
+      # ones this run did not touch -- are actually at risk of pointing at
+      # something that no longer exists, so those are the ones this step
+      # spends its 3 retries on.
+      - name: Validate manifest images exist in registry
+        env:
+          BACKEND_CHANGED: ${{ needs.detect-changes.outputs.backend_changed }}
+          FRONTEND_CHANGED: ${{ needs.detect-changes.outputs.frontend_changed }}
+          VENDOR_BACKEND_CHANGED: ${{ needs.detect-changes.outputs.vendor_backend_changed }}
+          VENDOR_FRONTEND_CHANGED: ${{ needs.detect-changes.outputs.vendor_frontend_changed }}
+          ZOECONNECT_CHANGED: ${{ needs.detect-changes.outputs.zoeconnect_changed }}
+          # CRITICAL FEATURE (registry-repair, 2026-08): a service the
+          # registry-repair job already rebuilt and pushed (under this
+          # run's own SHORT_SHA -- see resolve_tag() above, which is why
+          # MANIFEST already has that fresh tag, not the missing one) is
+          # just as "already confirmed present this run" as one build-images
+          # rebuilt -- re-pulling it here would only re-download something
+          # registry-repair's own repair step already pulled once to
+          # confirm. Folded into the same CHANGED-based skip below via an
+          # OR, not a second branch.
+          BACKEND_REPAIRED: ${{ needs.registry-repair.outputs.backend_repaired }}
+          FRONTEND_REPAIRED: ${{ needs.registry-repair.outputs.frontend_repaired }}
+          VENDOR_BACKEND_REPAIRED: ${{ needs.registry-repair.outputs.vendor_backend_repaired }}
+          VENDOR_FRONTEND_REPAIRED: ${{ needs.registry-repair.outputs.vendor_frontend_repaired }}
+          ZOECONNECT_REPAIRED: ${{ needs.registry-repair.outputs.zoeconnect_repaired }}
+        run: |
+          set -uo pipefail
+          source infrastructure/scripts/manifest-lib.sh
+          MANIFEST="deployment-bundle/manifest.yml"
+
+          declare -A TAGS=(
+            [backend]="$(extract_image_tag "$MANIFEST" backend)"
+            [frontend]="$(extract_image_tag "$MANIFEST" frontend)"
+            [vendor_backend]="$(extract_image_tag "$MANIFEST" vendor_backend)"
+            [vendor_frontend]="$(extract_image_tag "$MANIFEST" vendor_frontend)"
+            [zoeconnect]="$(extract_image_tag "$MANIFEST" zoeconnect)"
+          )
+          declare -A IMAGE_NAMES=(
+            [backend]="hdsp-backend"
+            [frontend]="hdsp-frontend"
+            [vendor_backend]="hdsp-vendor-backend"
+            [vendor_frontend]="hdsp-vendor-frontend"
+            [zoeconnect]="hdsp-zoeconnect"
+          )
+          declare -A CHANGED=(
+            [backend]="${BACKEND_CHANGED}"
+            [frontend]="${FRONTEND_CHANGED}"
+            [vendor_backend]="${VENDOR_BACKEND_CHANGED}"
+            [vendor_frontend]="${VENDOR_FRONTEND_CHANGED}"
+            [zoeconnect]="${ZOECONNECT_CHANGED}"
+          )
+          declare -A REPAIRED=(
+            [backend]="${BACKEND_REPAIRED}"
+            [frontend]="${FRONTEND_REPAIRED}"
+            [vendor_backend]="${VENDOR_BACKEND_REPAIRED}"
+            [vendor_frontend]="${VENDOR_FRONTEND_REPAIRED}"
+            [zoeconnect]="${ZOECONNECT_REPAIRED}"
+          )
+
+          # self_hosted/cloud scoping audit (2026-08): deploy.sh/rollback.sh
+          # now only ever pull+run backend/frontend/postgres/redis (plus
+          # nginx) when the target host's DEPLOYMENT_MODE is self_hosted --
+          # vendor_backend/vendor_frontend/zoeconnect are never touched on
+          # that host. Requiring those 3 images to be pullable from the
+          # registry here would fail (or block) a self_hosted-only deploy
+          # pipeline over images it will never use. `env.DEPLOYMENT_MODE`
+          # defaults to 'cloud' (see workflow-level `env:` block), which
+          # keeps validating all 5 -- identical to this step's behavior
+          # before this fix -- for any repo that hasn't explicitly opted
+          # into self_hosted via `vars.DEPLOYMENT_MODE`.
+          if [ "${DEPLOYMENT_MODE:-cloud}" = "self_hosted" ]; then
+            VALIDATE_SERVICES=(backend frontend)
+            echo "ℹ️  DEPLOYMENT_MODE=self_hosted -- only validating backend/frontend images (vendor_backend/vendor_frontend/zoeconnect are not used by a self_hosted deployment target, skipping their registry check)."
+          else
+            VALIDATE_SERVICES=(backend frontend vendor_backend vendor_frontend zoeconnect)
+          fi
+
+          MISSING=()
+          for svc in "${VALIDATE_SERVICES[@]}"; do
+            tag="${TAGS[$svc]}"
+            ref="${REGISTRY}/${IMAGE_NAMESPACE}/${IMAGE_NAMES[$svc]}:${tag}"
+
+            if [ -z "$tag" ]; then
+              echo "❌ ${svc}: manifest.yml has no tag at all (should have been caught earlier -- treating as missing)."
+              MISSING+=("${svc} (${ref})")
+              continue
+            fi
+
+            if [ "${CHANGED[$svc]}" = "true" ]; then
+              echo "⏭️  ${svc}: rebuilt and pushed earlier in this same run (build-images already confirmed the push succeeded) -- skipping re-pull of ${ref}."
+              continue
+            fi
+
+            if [ "${REPAIRED[$svc]:-false}" = "true" ]; then
+              echo "⏭️  ${svc}: registry-repair rebuilt and pushed this earlier in this same run (already confirmed via its own re-pull) -- skipping re-pull of ${ref}."
+              continue
+            fi
+
+            ok=false
+            for attempt in 1 2 3; do
+              if docker pull "$ref" >/tmp/manifest_check_stdout.log 2>/tmp/manifest_check_stderr.log; then
+                ok=true
+                break
+              fi
+              echo "  (attempt ${attempt}/3 failed for ${ref}, retrying...)"
+              sleep 2
+            done
+
+            if [ "$ok" = "true" ]; then
+              echo "✅ ${svc}: ${ref} pulled successfully -- confirmed present in registry."
+            else
+              echo "❌ ${svc}: ${ref} could not be pulled:"
+              cat /tmp/manifest_check_stderr.log 2>/dev/null || true
+              MISSING+=("${svc} (${ref})")
+            fi
+          done
+
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo ""
+            echo "🛑 Refusing to deploy: ${#MISSING[@]} image(s) referenced by manifest.yml could not be pulled from the registry:"
+            for m in "${MISSING[@]}"; do echo "   - $m"; done
+            echo ""
+            echo "This is a hard stop -- deploying would either fail on the remote host mid-teardown of the running release, or (worse) silently fall back to whatever 'latest' happens to be. Root cause is almost always one of: a failed/partial image push earlier in this run, a registry image that was deleted or pruned after the fact, or a corrupted manifest.yml. Investigate before re-running."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All manifest image references verified present in the registry -- safe to deploy."
+
+      - name: Transfer Deployment Bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deployment-bundle.tar.gz"
+          target: "/opt/hdsp/"
+
+  deploy:
+    needs: package-bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute remote deployment
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
+          IMAGE_TAG: ${{ github.sha }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: REGISTRY,IMAGE_NAMESPACE,IMAGE_TAG,REGISTRY_USERNAME,REGISTRY_PASSWORD
+          script: |
+            set -Eeuo pipefail
+            
+            echo "Connecting to Oracle Cloud..."
+            cd /opt/hdsp
+            
+            SHORT_SHA="$(echo ${IMAGE_TAG} | cut -c1-7)"
+            RELEASE_NAME="release-$(date +%Y%m%d%H%M%S)-${SHORT_SHA}"
+            TARGET_DIR="/opt/hdsp/releases/${RELEASE_NAME}"
+            
+            echo "Unpacking deployment bundle to ${TARGET_DIR}..."
+            mkdir -p "${TARGET_DIR}"
+            tar -xzf deployment-bundle.tar.gz -C "${TARGET_DIR}"
+            rm -f deployment-bundle.tar.gz
+
+            # CRITICAL FIX (release-immutability architecture, 2026-08):
+            # this is the ONLY writer of this pointer anywhere in the
+            # pipeline -- not deploy.sh, not rollback.sh. It updates
+            # unconditionally, immediately after extraction, BEFORE
+            # deploy.sh even runs -- so it always reflects the newest
+            # packaged release regardless of whether deploy.sh afterward
+            # succeeds, fails, or triggers an automatic rollback. The
+            # "Fetch previous release manifest" step in package-bundle
+            # reads this pointer directly instead of sorting
+            # /opt/hdsp/releases/ by mtime (a field release directories no
+            # longer have any writes into after this fix, but which a
+            # historical rollback.sh bug used to silently corrupt). Once
+            # set, TARGET_DIR itself is never written to again by anything
+            # in this pipeline -- release directories are immutable from
+            # this point in their lifecycle onward.
+            ln -sfn "${TARGET_DIR}" /opt/hdsp/releases/latest-packaged
+            echo "Updated latest-packaged pointer -> ${TARGET_DIR}"
+
+            echo "Executing deployment script..."
+            # Both scripts get chmod +x here as a second, independent
+            # guarantee on top of the chmod already done during packaging
+            # (see package-bundle's comment) — immune to anything that
+            # happens to the bits in transit (tar behavior, remote umask,
+            # etc.), and symmetric between the two scripts. rollback.sh must
+            # also be executable: deploy.sh's cleanup() trap invokes it
+            # directly (not via `bash rollback.sh`) on any failure.
+            chmod +x "${TARGET_DIR}/infrastructure/scripts/deploy.sh"
+            chmod +x "${TARGET_DIR}/infrastructure/scripts/rollback.sh"
+            "${TARGET_DIR}/infrastructure/scripts/deploy.sh"

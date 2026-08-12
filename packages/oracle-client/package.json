@@ -1,0 +1,24 @@
+{
+  "name": "@hdsp/oracle-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-agnostic Oracle connection-pool client with retry and circuit-breaker logic (Hybrid Architecture roadmap, Phase 6 Task 6.1). Extracted verbatim from the backend's OraclePoolService so it is consumable both by the NestJS backend (via a thin DI wrapper) and the standalone connector/ package, without duplicating the pool/circuit-breaker implementation in two places.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "oracledb": "^6.7.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.5"
+  }
+}

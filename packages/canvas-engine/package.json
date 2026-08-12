@@ -1,0 +1,23 @@
+{
+  "name": "@hdsp/canvas-engine",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Framework-agnostic canvas engine core (scene graph, spatial index, event bus, command system, viewport, FormSchema bridge) for HDSP Healthcare Document Studio. MUST have zero React/DOM dependencies (ADR-004) — @hdsp/form-schema is a data-only dependency (types + zod + semver), not React/DOM, so it does not violate that constraint.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "jest",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hdsp/form-schema": "file:../form-schema"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.5"
+  }
+}

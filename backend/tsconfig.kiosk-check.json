@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "src/modules/platform/kiosk-device/**/*.ts",
+    "src/app.module.ts",
+    "src/config/jwt.config.ts"
+  ]
+}

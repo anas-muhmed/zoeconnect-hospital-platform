@@ -1,0 +1,64 @@
+{
+  "_comment": "HDSP API service — Phase 9, Task 9.2. Placeholders in ALL_CAPS (${ACCOUNT_ID}, ${REGION}, ${IMAGE_TAG}, secret ARNs) are filled in by the deploy pipeline (Phase 12) or manually for a first staging cutover. Sized per the 'Small (pilot)' tier from HDSP_Cloud_Migration_Architecture_Review.md Section 17 (2 tasks). Built from infrastructure/docker/backend.Dockerfile with PROCESS_ROLE unset (defaults to 'all' -- wait, see note below) via CMD default.",
+  "_process_role_note": "This task definition does NOT set PROCESS_ROLE, meaning it inherits app.config.ts's 'all' default -- combined API+worker behavior, identical to self-hosted. To actually realize Task 9.6's split (API pods never register cron), set PROCESS_ROLE=api in the environment array below once the dedicated worker-task-definition.json service is also deployed and confirmed healthy -- flipping both together, not the API alone, avoids a window where cron runs nowhere.",
+  "family": "hdsp-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/hdsp-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/hdsp-api-task-role",
+  "containerDefinitions": [
+    {
+      "name": "hdsp-api",
+      "image": "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/hdsp-backend:${IMAGE_TAG}",
+      "essential": true,
+      "portMappings": [{ "containerPort": 3001, "protocol": "tcp" }],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "3001" },
+        { "name": "DEPLOYMENT_MODE", "value": "cloud" },
+        { "name": "LOG_TO_STDOUT", "value": "true" },
+        { "name": "STORAGE_DRIVER", "value": "s3" },
+        { "name": "ORACLE_TRANSPORT", "value": "cloud_relay" },
+        { "name": "LICENSE_PROVIDER_MODE", "value": "subscription" },
+        { "name": "NOTIFICATION_PROVIDER_MODE", "value": "cloud" },
+        { "name": "REDIS_TLS", "value": "true" }
+      ],
+      "secrets": [
+        { "name": "DB_HOST", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:host::" },
+        { "name": "DB_PORT", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:port::" },
+        { "name": "DB_NAME", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:dbname::" },
+        { "name": "DB_USER", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:username::" },
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/rds-connection:password::" },
+        { "name": "REDIS_HOST", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/elasticache-connection:host::" },
+        { "name": "REDIS_PORT", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/elasticache-connection:port::" },
+        { "name": "JWT_SECRET", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/jwt:secret::" },
+        { "name": "JWT_REFRESH_SECRET", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/jwt:refreshSecret::" },
+        { "name": "S3_BUCKET", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/app-config:s3Bucket::" },
+        { "name": "AWS_ACCESS_KEY_ID", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/aws-notifications:accessKeyId::" },
+        { "name": "AWS_SECRET_ACCESS_KEY", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/aws-notifications:secretAccessKey::" },
+        { "name": "SES_FROM_EMAIL", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/aws-notifications:sesFromEmail::" },
+        { "name": "CONNECTOR_REDIS_URL", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/elasticache-connection:connectorUrl::" },
+        { "name": "CLOUD_BASE_DOMAIN", "valueFrom": "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:hdsp/app-config:cloudBaseDomain::" }
+      ],
+      "_license_key_note": "No LICENSE_PUBLIC_KEY_PATH secret here -- Task 9.8's target config sets LICENSE_PROVIDER_MODE=subscription, which reads from subscription_licenses (DB), not the RSA-signed file FileLicenseProvider uses. Only add this back if a cloud deployment ever runs LICENSE_PROVIDER_MODE=file.",
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:3001/api/health/live || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/hdsp-api",
+          "awslogs-region": "${REGION}",
+          "awslogs-stream-prefix": "api"
+        }
+      }
+    }
+  ],
+  "_service_notes": "ECS service: desiredCount=2 (pilot tier), deploymentConfiguration.minimumHealthyPercent=100/maximumPercent=200 for zero-downtime rolling deploys, attached to the ALB target group defined in infrastructure/terraform/alb.tf on port 3001, health check grace period >= startPeriod above."
+}

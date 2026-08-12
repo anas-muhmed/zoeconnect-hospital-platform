@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Warm paper light mode — not a generic cold-white SaaS light theme */
+  --background: 40 22% 97%;
+  --foreground: 220 20% 9%;
+  --surface: 38 25% 94%;
+  --border: 32 15% 84%;
+  --accent: 32 75% 46%;
+  --accent-foreground: 40 22% 98%;
+}
+
+.dark {
+  /* Deep obsidian, not pure black — with a warm brass signal accent */
+  --background: 220 18% 6%;
+  --foreground: 40 20% 95%;
+  --surface: 220 16% 10%;
+  --border: 220 14% 18%;
+  --accent: 38 78% 58%;
+  --accent-foreground: 220 20% 8%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: auto;
+}
+
+html.lenis {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "ss01", "cv01";
+}
+
+::selection {
+  background: hsl(var(--accent) / 0.35);
+  color: hsl(var(--foreground));
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--accent) / 0.6);
+}
+
+/* Signature ZoeConnect mark: a solid signal-colored underline treatment
+   instead of the ubiquitous animated rainbow gradient-text pattern. */
+.signal-underline {
+  background-image: linear-gradient(hsl(var(--accent)), hsl(var(--accent)));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 0.14em;
+  padding-bottom: 0.05em;
+}
+
+.text-muted-warm {
+  color: hsl(var(--foreground) / 0.58);
+}
+
+.glass {
+  background: hsl(var(--surface) / 0.6);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid hsl(var(--border) / 0.7);
+}
+
+.glass-strong {
+  background: hsl(var(--surface) / 0.82);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid hsl(var(--border) / 0.9);
+}
+
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  z-index: 100;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.grid-fade {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 90%);
+}
+
+.diagonal-fade {
+  background-image: repeating-linear-gradient(
+    115deg,
+    hsl(var(--border) / 0.4) 0px,
+    hsl(var(--border) / 0.4) 1px,
+    transparent 1px,
+    transparent 64px
+  );
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, black 30%, transparent 90%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, hsl(var(--accent)), #f2c98a 60%, hsl(var(--accent)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

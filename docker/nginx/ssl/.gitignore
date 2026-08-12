@@ -1,0 +1,5 @@
+# Real certificates/keys go here at deploy time (bind-mounted into
+# hdsp-nginx as /etc/nginx/ssl, read-only) — never commit them.
+*
+!.gitignore
+!.gitkeep

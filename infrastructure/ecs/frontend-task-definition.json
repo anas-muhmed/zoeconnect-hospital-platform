@@ -1,0 +1,39 @@
+{
+  "_comment": "HDSP Frontend service — Phase 9, Task 9.2. Built from infrastructure/docker/frontend.Dockerfile with NEXT_PUBLIC_API_URL baked in at image-build time per environment (staging vs. production each need their own image tag). Sized per the 'Small (pilot)' tier (2 tasks).",
+  "family": "hdsp-frontend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/hdsp-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/hdsp-frontend-task-role",
+  "containerDefinitions": [
+    {
+      "name": "hdsp-frontend",
+      "image": "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/hdsp-frontend:${IMAGE_TAG}",
+      "essential": true,
+      "portMappings": [{ "containerPort": 3000, "protocol": "tcp" }],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "3000" },
+        { "name": "NEXT_TELEMETRY_DISABLED", "value": "1" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/hdsp-frontend",
+          "awslogs-region": "${REGION}",
+          "awslogs-stream-prefix": "frontend"
+        }
+      }
+    }
+  ],
+  "_service_notes": "ECS service: desiredCount=2, attached to the ALB target group on port 3000 (see infrastructure/terraform/alb.tf's host-based routing rule -- the frontend is the default/catch-all target for a tenant subdomain, the API target is matched by a /api/* path rule on the same host)."
+}

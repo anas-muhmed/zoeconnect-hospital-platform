@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>HDSP Kiosk -- Reconnecting</title>
+<style>
+  html, body {
+    margin: 0; height: 100%; width: 100%;
+    background: #0f172a;
+    color: #f8fafc;
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card { text-align: center; max-width: 520px; padding: 40px; }
+  .spinner {
+    width: 56px; height: 56px; margin: 0 auto 24px;
+    border: 5px solid rgba(248,250,252,0.15);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+  p { color: rgba(248,250,252,0.65); font-size: 15px; line-height: 1.5; margin: 0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="spinner"></div>
+    <h1>Reconnecting to HDSP&hellip;</h1>
+    <p>
+      The kiosk can't reach the HDSP server right now.<br />
+      This screen will refresh automatically as soon as the connection is
+      back -- no action is needed.
+    </p>
+  </div>
+</body>
+</html>

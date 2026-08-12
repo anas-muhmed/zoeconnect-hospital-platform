@@ -1,0 +1,36 @@
+{
+  "name": "@hdsp/connector-tray",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ZoeConnect Connector Manager -- system tray launcher (Task #103, 2026-07-22). A tiny, separate process from the Connector Windows Service -- see README.md's 'Why a separate process' section for why this MUST NOT be merged into the Service (Windows Session 0 isolation: a service has no desktop to show a tray icon in). Talks to the Service's local REST API over 127.0.0.1 for every action; never touches Oracle, the cloud, or credentials directly.",
+  "main": "dist/index.js",
+  "bin": {
+    "hdsp-connector-tray": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "package": "npm run build && pkg . --output ../connector-installer/build/tray.exe"
+  },
+  "dependencies": {
+    "systray2": "^2.1.4",
+    "open": "^6.4.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.0",
+    "jest": "^29.7.0",
+    "pkg": "^5.8.1",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.5"
+  },
+  "pkg": {
+    "//": "systray2 ships its own prebuilt per-platform tray helper binaries under node_modules/systray2/traybin/ (tray_windows_release.exe etc, resolved via getTrayBinPath() in systray2's index.js relative to __dirname) -- these MUST be included in the pkg bundle or the tray will fail to find its helper at runtime on the target machine. NOTE (2026-07-22): this package was originally specified as 'node-systray-v2', which does not exist on the npm registry (confirmed via a real `npm install` 404 on Windows) -- 'systray2' is the actual published, maintained package; verified its traybin/ asset path directly against the published package's source before this fix, not assumed.",
+    "targets": ["node18-win-x64"],
+    "assets": [
+      "node_modules/systray2/traybin/**/*"
+    ]
+  }
+}

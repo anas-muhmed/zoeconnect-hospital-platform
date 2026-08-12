@@ -1,0 +1,113 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: auth.setup.ts >> authenticate as admin
+- Location: tests\auth.setup.ts:13:8
+
+# Error details
+
+```
+Test timeout of 60000ms exceeded.
+```
+
+```
+Error: page.waitForURL: Test timeout of 60000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to "**/*dashboard*" until "load"
+============================================================
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - paragraph [ref=e6]: LIFE HIS · Hospital Information System
+        - img "HDSP" [ref=e8]
+        - generic [ref=e9]:
+          - heading "HDSP" [level=1] [ref=e10]
+          - paragraph [ref=e11]: Hospital Digital Service Platform
+        - paragraph [ref=e13]: A unified digital platform for hospital operations — streamlining patient services, clinical workflows, and administrative management across your institution.
+      - paragraph [ref=e15]: For authorised hospital personnel only. All sessions are monitored and audited.
+    - generic [ref=e16]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - heading "Sign In" [level=2] [ref=e21]
+          - paragraph [ref=e22]: Enter your credentials to access the platform
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - generic [ref=e25]: Username
+            - generic [ref=e26]:
+              - textbox "Username" [ref=e30]: admin
+              - group:
+                - generic: Username
+          - generic [ref=e31]:
+            - generic [ref=e32]: Password
+            - generic [ref=e33]:
+              - textbox "Password" [ref=e37]: password
+              - button "Show password" [ref=e39] [cursor=pointer]
+              - group:
+                - generic: Password
+          - button "Sign In" [ref=e42] [cursor=pointer]
+          - button "Forgot password?" [ref=e44] [cursor=pointer]
+        - generic [ref=e45]:
+          - paragraph [ref=e46]: Powered by
+          - img "LIFE HIS" [ref=e47]
+      - contentinfo [ref=e48]:
+        - paragraph [ref=e49]: © 2026 LIFE HIS. All rights reserved.
+        - paragraph [ref=e50]: HDSP v1.0.0 · Authorised personnel only
+  - button "Open Tanstack query devtools" [ref=e101] [cursor=pointer]
+  - alert [ref=e150]
+```
+
+# Test source
+
+```ts
+  1  | import { test as setup, expect } from '@playwright/test';
+  2  | import path from 'path';
+  3  | 
+  4  | const personas = [
+  5  |   { username: 'admin', password: 'password', file: '../.auth/admin.json' },
+  6  |   { username: 'reporter', password: 'password', file: '../.auth/reporter.json' },
+  7  |   { username: 'investigator', password: 'password', file: '../.auth/investigator.json' },
+  8  |   { username: 'qm', password: 'password', file: '../.auth/qm.json' },
+  9  |   { username: 'tenant_b_user', password: 'password', file: '../.auth/tenant_b_user.json' }
+  10 | ];
+  11 | 
+  12 | for (const persona of personas) {
+  13 |   setup(`authenticate as ${persona.username}`, async ({ page }) => {
+  14 |     if (persona.username === 'tenant_b_user') {
+  15 |       await page.goto('http://tenant-b.localtest.me:3000/login');
+  16 |     } else {
+  17 |       await page.goto('/login');
+  18 |     }
+  19 |     await page.fill('input[name="username"]', persona.username);
+  20 |     await page.fill('input[name="password"]', persona.password);
+  21 |     
+  22 |     // Check if there is an organization code field or similar, 
+  23 |     // usually in multi-tenant enterprise apps there is an org code, but here tenant is derived from subdomain or it's a dropdown?
+  24 |     // Looking at login/page.tsx, it only asks for username and password.
+  25 |     
+  26 |     await page.click('button[type="submit"]');
+  27 | 
+  28 |     // Wait for successful login (usually redirects to dashboard or home)
+> 29 |     await page.waitForURL('**/*dashboard*'); // adjust depending on app behavior
+     |                ^ Error: page.waitForURL: Test timeout of 60000ms exceeded.
+  30 |     
+  31 |     // Save state
+  32 |     await page.context().storageState({ path: path.join(__dirname, persona.file) });
+  33 | 
+  34 |     // Playwright doesn't save sessionStorage, so save it manually
+  35 |     const sessionData = await page.evaluate(() => JSON.stringify(sessionStorage));
+  36 |     require('fs').writeFileSync(path.join(__dirname, persona.file.replace('.json', '-session.json')), sessionData);
+  37 |   });
+  38 | }
+  39 | 
+```

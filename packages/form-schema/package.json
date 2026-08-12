@@ -1,0 +1,27 @@
+{
+  "name": "@hdsp/form-schema",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-agnostic FormSchema types, Component Registry, and Plugin SDK contracts for HDSP Healthcare Document Studio. Consumed by both the NestJS backend and the Next.js frontend (ADR-001, ADR-005, ADR-006).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "fast-json-patch": "^3.1.1",
+    "semver": "^7.6.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.0",
+    "@types/semver": "^7.5.8",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.5"
+  }
+}

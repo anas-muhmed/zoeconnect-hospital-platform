@@ -1,0 +1,82 @@
+# ── Node ──────────────────────────────────────────────────────────
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# ── Environment files (NEVER commit) ──────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+installer/Output/
+installer/assets/node.exe
+installer/assets/postgresql.zip
+# ── Secrets & Keys (NEVER commit) ─────────────────────────────────
+keys/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ── Logs ──────────────────────────────────────────────────────────
+/backend/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── PM2 ───────────────────────────────────────────────────────────
+.pm2/
+ecosystem.config.js.bak
+
+# ── Docker ────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── OS ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editors / IDEs ────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── TypeScript ────────────────────────────────────────────────────
+*.tsbuildinfo
+*.d.ts.map
+
+# ── Coverage & Testing ────────────────────────────────────────────
+coverage/
+.nyc_output/
+test-results/
+
+# ── Uploads & temp files ──────────────────────────────────────────
+uploads/
+tmp/
+*.tmp
+
+# ── Backups ───────────────────────────────────────────────────────
+# Anchored to repo root + the one real runtime backup-output directory
+# (backend/backups/, written by local-backup-storage.provider.ts via
+# `path.join(process.cwd(), 'backups')`). Fix (2026-08-07): this was
+# previously the unanchored pattern `backups/`, which — because gitignore
+# treats a bare directory name with no leading slash as matching that name
+# at ANY depth — also silently matched
+# frontend/src/app/(platform)/backup/backups/, a real Next.js route
+# directory, not a runtime artifact. That page.tsx was never committed, so
+# it was never deployed, so POST-backup navigation to /backup/backups
+# 404'd in production despite the source existing and looking correct.
+# Root-caused from a live "Start Backup click leads to a 404" report.
+/backend/backups/
+
+# ── Claude / AI session files ─────────────────────────────────────
+.claude/

@@ -1,0 +1,206 @@
+name: Build & Push Release Images
+
+# Phase 12 (Hybrid Architecture roadmap, Task 12.2 — "Build stage"). Produces
+# the versioned, DEPLOYMENT_MODE-agnostic images every downstream deploy path
+# (Task 12.3's cloud automation, Task 12.4's self-hosted installer) consumes
+# by tag alone: `hdsp-backend:<version>` (shared by the ECS `api` and
+# `worker` services — see `infrastructure/terraform/ecs.tf`'s
+# `api_image_tag`/`worker_image_tag`, both pointing at the one
+# `aws_ecr_repository.backend` repo, and `backend.Dockerfile`'s own
+# PROCESS_ROLE-at-runtime design from Phase 9 — one image, two roles, not
+# two images), `hdsp-frontend:<version>`, `hdsp-connector:<version>`.
+#
+# Deliberately a separate workflow from ci-backend.yml/ci-frontend.yml/
+# ci-connector.yml, not a job bolted onto them: those three gate every PR
+# (fast, no Docker builds, no registry credentials needed to run them); this
+# one only runs after they'd already have passed on the same commit (via the
+# push-to-main/tag trigger, which GitHub only fires after required checks on
+# the PR that landed it), and needs registry write credentials PRs from
+# forks should never have access to.
+#
+# `version` is: the git tag (`v1.2.3`, stripped of the leading `v`) on a
+# tag push, or `0.0.0-<short-sha>` on a push to `main` (an explicit
+# pre-release-shaped tag, not a real semver release — Task 12.2 doesn't
+# require every main-branch commit to cut a release, but does want every
+# main-branch commit to have a pushed, pullable image for staging/dev use).
+#
+# AWS auth: OIDC (`aws-actions/configure-aws-credentials` with
+# `role-to-assume`), not long-lived access-key secrets — standard GitHub
+# Actions <-> AWS practice, avoids a static credential sitting in repo
+# secrets. Requires the repo's `AWS_ECR_PUSH_ROLE_ARN` secret and the
+# corresponding IAM role/OIDC trust policy to exist in the real AWS account
+# — neither is created by this workflow (no AWS account is reachable from
+# this sandbox; same "written carefully, not fabricated as applied" posture
+# as every other Phase 9/12 infrastructure file in this project). See
+# PHASE_12_IMPLEMENTATION_PLAN.md for the one-time manual setup this
+# workflow assumes.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+
+permissions:
+  id-token: write   # required for OIDC -> AWS
+  contents: read
+  packages: write   # required to push self-hosted release images to GHCR (GITHUB_TOKEN-authenticated, no extra secret)
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY_ALIAS: hdsp   # matches variables.tf's project_name default; override if the real account differs
+
+  GHCR_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  version:
+    name: Resolve release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      is_release: ${{ steps.resolve.outputs.is_release }}
+    steps:
+      - id: resolve
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="0.0.0-${GITHUB_SHA::8}"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${VERSION}"
+
+  build-and-push:
+    name: Build & push (${{ matrix.image }})
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: backend
+            dockerfile: infrastructure/docker/backend.Dockerfile
+            ecr_repo: hdsp-backend
+          - image: frontend
+            dockerfile: infrastructure/docker/frontend.Dockerfile
+            ecr_repo: hdsp-frontend
+          - image: connector
+            dockerfile: infrastructure/docker/connector.Dockerfile
+            ecr_repo: hdsp-connector
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          # Every Dockerfile here needs the monorepo ROOT as build context
+          # (Phase 9) -- backend/frontend/connector all resolve `file:`
+          # workspace dependencies (@hdsp/oracle-client, @hdsp/connector,
+          # @hdsp/canvas-engine, etc.) that only exist relative to the repo
+          # root, not any one service subdirectory.
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repo }}:${{ needs.version.outputs.version }}
+            ${{ needs.version.outputs.is_release == 'true' && format('{0}/{1}:latest', steps.login-ecr.outputs.registry, matrix.ecr_repo) || '' }}
+        id: build
+
+  version-manifest:
+    name: Publish version manifest
+    needs: [version, build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read connector compatibility matrix
+        id: connector_version
+        run: |
+          # Task 12.5: the version manifest records which Connector version
+          # this backend release was built/tested against, sourced from the
+          # one place that's supposed to know -- connector/package.json --
+          # rather than duplicating the number by hand in this workflow.
+          CONNECTOR_VERSION=$(node -p "require('./connector/package.json').version")
+          echo "version=${CONNECTOR_VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Generate manifest
+        run: |
+          mkdir -p dist-manifest
+          cat > dist-manifest/version-manifest.json <<EOF
+          {
+            "hdspVersion": "${{ needs.version.outputs.version }}",
+            "isRelease": ${{ needs.version.outputs.is_release }},
+            "gitSha": "${{ github.sha }}",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "images": {
+              "backend": "hdsp-backend:${{ needs.version.outputs.version }}",
+              "frontend": "hdsp-frontend:${{ needs.version.outputs.version }}",
+              "connector": "hdsp-connector:${{ needs.version.outputs.version }}"
+            },
+            "connectorVersion": "${{ steps.connector_version.outputs.version }}",
+            "minCompatibleConnectorVersion": "$(node -p "require('./connector/COMPATIBILITY.json').minCompatibleConnectorVersion")",
+            "schemaVersion": "$(ls backend/src/database/migrations | tail -1 | cut -d- -f1)"
+          }
+          EOF
+          cat dist-manifest/version-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: version-manifest
+          path: dist-manifest/version-manifest.json
+          retention-days: 90
+
+  publish-self-hosted-images:
+    name: Publish self-hosted release images (GHCR — ${{ matrix.image }})
+    needs: [version, build-and-push]
+    if: needs.version.outputs.is_release == 'true'
+    # Task 12.4's self-hosted installer runs on a hospital's own server,
+    # with no AWS IAM identity and no access to the private ECR repos
+    # `build-and-push` pushes to (those are the SaaS cloud deployment's
+    # registry, gated by Task 12.3's OIDC role). Self-hosted images need a
+    # registry a plain `docker login`/anonymous pull can reach — GHCR,
+    # authenticated here with the workflow's own `GITHUB_TOKEN` (no extra
+    # secret to provision), published only on a real version tag (`v*`),
+    # not on every main-branch commit — a hospital installer should only
+    # ever see real, numbered releases, never a `0.0.0-<sha>` dev build.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: backend
+            dockerfile: infrastructure/docker/backend.Dockerfile
+          - image: frontend
+            dockerfile: infrastructure/docker/frontend.Dockerfile
+          - image: connector
+            dockerfile: infrastructure/docker/connector.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.SELF_HOSTED_NEXT_PUBLIC_API_URL }}
+          tags: |
+            ghcr.io/${{ env.GHCR_OWNER }}/hdsp-${{ matrix.image }}:${{ needs.version.outputs.version }}
+            ghcr.io/${{ env.GHCR_OWNER }}/hdsp-${{ matrix.image }}:latest

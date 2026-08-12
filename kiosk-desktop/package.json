@@ -1,0 +1,54 @@
+{
+  "name": "@hdsp/kiosk-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ZoeConnect Kiosk Desktop -- a dedicated Electron shell for the existing Token Kiosk web app (frontend/src/app/token/print-kiosk and /kiosk/[slug]). This package does NOT reimplement the kiosk UI: it loads the existing kiosk pages, served by the already-installed ZoeConnect backend/frontend, inside a locked-down fullscreen Chromium window and replaces window.print() (browser print-preview) with Electron's silent, dialog-free webContents.print(). Built and packaged completely independently of installer/ZoeConnect.iss -- the main ZoeConnect installer is never touched by this package. See README.md for architecture and DEPLOYMENT_GUIDE.md for the hospital rollout flow.",
+  "author": "ZoeConnect (ZoeConnect, Powered by LifeHIS)",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && cross-env KIOSK_DEV=1 electron .",
+    "start": "electron .",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "jest",
+    "kiosk:build": "npm run build && electron-builder --win nsis",
+    "kiosk:pack": "npm run build && electron-builder --win nsis --dir"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "cross-env": "^7.0.3",
+    "electron": "30.5.1",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.4.5"
+  },
+  "build": {
+    "appId": "com.lifehis.hdsp.kiosk",
+    "productName": "ZoeConnect Kiosk",
+    "artifactName": "HDSP_Kiosk_Setup.exe",
+    "npmRebuild": false,
+    "directories": {
+      "output": "installer/Output",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "resources/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ZoeConnect Kiosk"
+    }
+  }
+}

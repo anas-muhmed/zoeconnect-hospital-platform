@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/modules/attendance/**/*.ts",
+    "src/modules/his/**/*.ts",
+    "src/common/**/*.ts",
+    "src/config/**/*.ts"
+  ]
+}

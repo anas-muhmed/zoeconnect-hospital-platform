@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HDSP Registration Widget — HIS Integration Snippet
+  ====================================================
+  Add this block to your patient registration XHTML page.
+
+  Prerequisites:
+    1. Nginx reverse proxy routes /hdsp/* → HDSP frontend (port 3000)
+    2. The HDSP JWT for the logged-in receptionist is available as #{hdspSessionBean.accessToken}
+    3. The branch code is available as #{hdspSessionBean.branchId}
+
+  HIS customisation required: ONLY the <h:outputScript> hook and the oncomplete
+  attribute on your existing <a4j:commandButton> (or p:commandButton).
+  No other HIS changes needed.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="http://xmlns.jcp.org/jsf/facelets"
+                xmlns:h="http://xmlns.jcp.org/jsf/html"
+                xmlns:a4j="http://richfaces.org/a4j">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       1. HDSP Widget iframe
+          Positioned wherever the HIS layout has free space (sidebar, panel, etc.)
+          Width / height can be adjusted to fit the HIS layout.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <iframe
+    id="hdspRegistrationWidget"
+    src="/hdsp/widget/registration?branchId=#{hdspSessionBean.branchId}&amp;token=#{hdspSessionBean.accessToken}"
+    title="HDSP Registration Queue"
+    width="360"
+    height="600"
+    style="border:none; border-radius:12px; box-shadow:0 2px 16px rgba(0,0,0,.08);"
+    sandbox="allow-scripts allow-same-origin allow-forms"
+    loading="lazy"
+  />
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       2. Bridge script
+          notifyHdspWidget() is called from the oncomplete of the HIS save button.
+          It reads the just-registered patient data from JSF-managed bean backing
+          fields (or EL expressions you expose) and sends them to the widget.
+
+          REPLACE the #{...} expressions with the actual EL paths that your HIS
+          registration bean exposes after a successful save.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <h:outputScript>
+    //<![CDATA[
+    /**
+     * notifyHdspWidget
+     * Call this from your registration form's oncomplete callback after a
+     * successful patient save.  All parameters are strings.
+     *
+     * @param {string} hisPatientId  Internal HIS patient PK (never shown to user)
+     * @param {string} mrn           Medical Record Number displayed in HDSP
+     * @param {string} patientName   Optional -- display name for HDSP success screen
+     * @param {string} visitId       Optional -- supply if a visit was created
+     */
+    function notifyHdspWidget(hisPatientId, mrn, patientName, visitId) {
+      var frame = document.getElementById('hdspRegistrationWidget');
+      if (!frame || !frame.contentWindow) return;
+
+      frame.contentWindow.postMessage(
+        {
+          type:         'HIS_PATIENT_REGISTERED',
+          hisPatientId: hisPatientId || '',
+          mrn:          mrn          || '',
+          patientName:  patientName  || '',
+          visitId:      visitId      || ''
+        },
+        window.location.origin   // same-origin via Nginx reverse proxy
+      );
+    }
+    //]]>
+  </h:outputScript>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       3. HIS save button — add the oncomplete attribute
+          If your button already has oncomplete, append the notifyHdspWidget()
+          call to the existing handler.
+
+          REPLACE the #{...} EL expressions with real bean properties.
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <!--
+  EXAMPLE — modify your existing button like this:
+
+  <a4j:commandButton
+    id="btnSaveRegistration"
+    value="Save Registration"
+    action="#{registrationBean.savePatient}"
+    oncomplete="
+      if (data.status === 'success') {
+        notifyHdspWidget(
+          '#{registrationBean.savedPatientId}',
+          '#{registrationBean.savedMrn}',
+          '#{registrationBean.savedPatientName}',
+          '#{registrationBean.savedVisitId}'
+        );
+      }
+    "
+    render="registrationForm"
+  />
+  -->
+
+</ui:composition>

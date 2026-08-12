@@ -1,0 +1,32 @@
+{
+  "name": "hdsp-monorepo",
+  "version": "1.0.0",
+  "description": "ZoeConnect — Monorepo Root",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "connector",
+    "kiosk-desktop"
+  ],
+  "scripts": {
+    "install:all":       "npm i --prefix backend && npm i --prefix frontend && npm install",
+    "dev:backend":       "cd backend && npm run start:dev",
+    "dev:frontend":      "cd frontend && npm run dev",
+    "build:backend":     "cd backend && npm run build",
+    "build:frontend":    "cd frontend && npm run build",
+    "build:packages":    "npm run build --workspace=@hdsp/form-schema && npm run build --workspace=@hdsp/canvas-engine && npm run build --workspace=@hdsp/canvas-engine-react && npm run build --workspace=@hdsp/form-renderer-react && npm run build --workspace=@hdsp/oracle-client && npm run build --workspace=@hdsp/connector",
+    "test:packages":     "npm run test --workspace=@hdsp/form-schema && npm run test --workspace=@hdsp/canvas-engine && npm run test --workspace=@hdsp/canvas-engine-react && npm run test --workspace=@hdsp/form-renderer-react && npm run test --workspace=@hdsp/oracle-client",
+    "lint:packages":     "npm run lint --workspace=@hdsp/form-schema && npm run lint --workspace=@hdsp/canvas-engine && npm run lint --workspace=@hdsp/canvas-engine-react && npm run lint --workspace=@hdsp/form-renderer-react && npm run lint --workspace=@hdsp/oracle-client",
+    "build:connector":   "npm run build --workspace=@hdsp/connector",
+    "test:connector":    "npm run test --workspace=@hdsp/connector",
+    "dev:connector":     "npm run start --workspace=@hdsp/connector",
+    "dev:kiosk":         "npm run dev --workspace=@hdsp/kiosk-desktop",
+    "build:kiosk":       "npm run build --workspace=@hdsp/kiosk-desktop",
+    "kiosk:build":       "npm run kiosk:build --workspace=@hdsp/kiosk-desktop",
+    "migrate":           "bash scripts/migrate.sh run",
+    "seed":              "bash scripts/migrate.sh seed",
+    "infra:up":          "docker compose -f infrastructure/docker-compose.yml up -d",
+    "infra:down":        "docker compose -f infrastructure/docker-compose.yml down",
+    "infra:tools":       "docker compose -f infrastructure/docker-compose.yml --profile tools up -d"
+  }
+}

@@ -1,0 +1,83 @@
+# ==============================================================================
+# HDSP CI — service path rules (single source of truth)
+# ==============================================================================
+#
+# Consumed ONLY by .gitea/scripts/detect-changes.sh, via plain grep/awk (no
+# YAML library dependency added to the CI runner — same convention already
+# used for manifest.yml elsewhere in this pipeline). Keep the structure below
+# exactly as-is (2-space indents, one `- path` per line, no inline lists,
+# no comments inside a `paths:` block) or the parser will silently miss
+# entries.
+#
+# What lives here vs. what doesn't:
+#   - Each service's OWN paths (its source directory, its Dockerfile) —
+#     these can't be derived from anything else, so they're listed by hand.
+#   - `workspace_root` — the directory containing that service's
+#     package.json. Used by resolve-package-deps.sh to AUTO-DISCOVER which
+#     packages/* (and other local workspace packages, e.g. connector/) that
+#     service actually imports, by scanning "file:" dependencies — this is
+#     what previously lived as hardcoded `packages/form-schema/**` style
+#     rules directly in detect-changes.sh. It does NOT live here, and it
+#     never will: it's derived at run time from package.json, so adding a
+#     new packages/<name> and having a service import it requires ZERO
+#     edits to this file, detect-changes.sh, or deploy.yml.
+#   - `infra` — paths that affect the deployment lifecycle itself (compose
+#     files, nginx config, the CI scripts/workflows, manifest.yml, this
+#     file). An infra-only change never triggers an image build (see
+#     detect-changes.sh), only a repackage + redeploy.
+#
+# ── Adding a new service (e.g. analytics/) ──────────────────────────────
+# 1. Add a `services.analytics` block below with its own `paths` and
+#    `workspace_root` (if it has a package.json with local workspace deps;
+#    omit `workspace_root` if it doesn't).
+# 2. Add its CHANGED[...] key and matrix entry in detect-changes.sh (two
+#    lines — see that script's own header comment).
+# Nothing else changes. In particular: if analytics/ later starts importing
+# packages/pdf-engine via `"@hdsp/pdf-engine": "file:../packages/pdf-engine"`
+# in its package.json, that dependency is picked up automatically the very
+# next run — no edit here, no edit to detect-changes.sh.
+# ==============================================================================
+
+services:
+  backend:
+    workspace_root: backend
+    paths:
+      - backend/**
+      - docker/backend.Dockerfile
+
+  frontend:
+    workspace_root: frontend
+    paths:
+      - frontend/**
+      - docker/frontend.Dockerfile
+
+  vendor_backend:
+    workspace_root: vendor-portal/backend
+    paths:
+      - vendor-portal/backend/**
+      - docker/vendor-backend.Dockerfile
+
+  vendor_frontend:
+    workspace_root: vendor-portal/frontend
+    paths:
+      - vendor-portal/frontend/**
+      - docker/vendor-frontend.Dockerfile
+
+  zoeconnect:
+    workspace_root: zoeconnect
+    paths:
+      - zoeconnect/**
+      - docker/zoeconnect.Dockerfile
+
+infra:
+  paths:
+    - infrastructure/**
+    - docker-compose.yml
+    - docker-compose.override.cloud.yml
+    - docker-compose.override.selfhosted.yml
+    - docker/nginx/**
+    - .gitea/workflows/**
+    - .gitea/scripts/**
+    - .github/workflows/**
+    - manifest.yml
+    - ci/dependencies.yml

@@ -1,0 +1,60 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Link from 'next/link';
+import LockIcon from '@mui/icons-material/Lock';
+import { vendorApi } from '@/lib/api/vendor.api';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const { accessToken } = await vendorApi.login(username, password);
+      sessionStorage.setItem('vendor_token', accessToken);
+      router.replace('/requests');
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Invalid credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Box sx={{
+      minHeight: '100dvh', display: 'flex',
+      alignItems: 'center', justifyContent: 'center',
+      bgcolor: 'background.default',
+    }}>
+      <Card elevation={0} sx={{ width: 400, border: 1, borderColor: 'divider' }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ width: 48, height: 48, bgcolor: 'primary.main', borderRadius: 2,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+              <LockIcon sx={{ color: 'white' }} />
+            </Box>
+            <Typography variant="h5" fontWeight={700}>Vendor Portal</Typography>
+            <Typography variant="body2" color="text.secondary">ZoeConnect License Management</Typography>
+          </Box>
+
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+          <form onSubmit={handleLogin}>
+            <TextField label="Username" fullWidth size="small" sx={{ mb: 2 }}
+              value={username} onChange={e => setUsername(e.target.value)} autoFocus />
+            <TextField label="Password" type="password" fullWidth size="small" s

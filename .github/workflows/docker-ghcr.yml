@@ -1,0 +1,297 @@
+name: Docker — Build, Push (GHCR) & Deploy
+
+# Additive, standalone workflow for the plain "Ubuntu Server + Docker
+# Compose" production deployment path (docker-compose.yml at the repo
+# root + docker/*.Dockerfile). Does NOT touch, replace, or share job names
+# with the existing .github/workflows/build-images.yml (AWS/ECR-focused,
+# builds infrastructure/docker/*.Dockerfile for the ECS deployment) or any
+# of the ci-*.yml gates — those still run their own lint/test jobs on
+# every PR independently of this file.
+#
+# ── Release-gated deployment (2026-07-29 review) ────────────────────────
+# This workflow enforces: no unreviewed code ever reaches production, and
+# only a successful merge into `main` (or a tagged release) may push
+# images or touch the production server. Concretely:
+#
+#   pull_request -> build-and-push runs with `push: false` — Dockerfiles
+#                   are validated (they must actually build), but nothing
+#                   is published to GHCR and `deploy-oracle-cloud` never
+#                   runs (its `if:` excludes pull_request entirely). A PR
+#                   cannot deploy itself no matter what it changes,
+#                   including edits to this very workflow file.
+#   push to main / -> build-and-push runs with `push: true` (images
+#   a `v*.*.*` tag    published to GHCR), then deploy-oracle-cloud SSHes
+#                     into the production host, pulls the images this run
+#                     just published, restarts the stack, and verifies
+#                     health. This only happens after GitHub's own
+#                     required-PR-review gate has already let the commit
+#                     onto `main` — see README_DOCKER.md § 12 Repository
+#                     Protection for the branch-protection rules this
+#                     workflow assumes are configured.
+#
+# Publishes exactly four images to GHCR ONLY (no Docker Hub, no ECR):
+#   ghcr.io/<owner>/hdsp-backend
+#   ghcr.io/<owner>/hdsp-frontend
+#   ghcr.io/<owner>/hdsp-vendor-backend
+#   ghcr.io/<owner>/hdsp-vendor-frontend
+# matching the four `image:` references in the root docker-compose.yml.
+#
+# Tagging (docker/metadata-action, not hand-rolled): on every push to
+# `main` -> `latest` + `main` + `<short-sha>`; on a feature branch push ->
+# just the branch name + `<short-sha>` (no `latest`); on a `v*.*.*` tag ->
+# full semver (`1.2.3`), `1.2`, `1`, plus `latest`. This is deliberately
+# richer than build-images.yml's own version scheme (git-tag-or-
+# `0.0.0-<sha>`) because this workflow's images are meant to be pulled
+# directly by `docker compose --env-file .env.production pull` on a
+# hospital's Ubuntu server via HDSP_VERSION — operators need a stable,
+# predictable tag to pin to, not just a dev-shaped fallback.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docker/**'
+      - 'docker-compose.yml'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'vendor-portal/**'
+      - 'packages/**'
+      - 'connector/**'
+      - '.github/workflows/docker-ghcr.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+  # Required for SBOM/provenance attestations (actions/attest-build-provenance)
+  id-token: write
+  attestations: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    name: Build & push (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            dockerfile: docker/backend.Dockerfile
+          - image: frontend
+            dockerfile: docker/frontend.Dockerfile
+          - image: vendor-backend
+            dockerfile: docker/vendor-backend.Dockerfile
+          - image: vendor-frontend
+            dockerfile: docker/vendor-frontend.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        # PRs from forks don't get package-write credentials — build-only,
+        # no push, for those (handled by the `push:` step input below via
+        # `github.event_name != 'pull_request'`), so login is skipped too.
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/hdsp-${{ matrix.image }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          # Every Dockerfile under docker/ needs the monorepo ROOT as
+          # build context (same reasoning as backend.Dockerfile's own
+          # header comment) — backend/frontend/vendor-* all resolve
+          # `file:` workspace dependencies that only exist relative to
+          # the repo root.
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_APP_NAME=${{ vars.NEXT_PUBLIC_APP_NAME || 'HDSP' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions cache backend for Buildx layer caching — cuts
+          # repeat-build time significantly for the packages-builder /
+          # backend-builder / frontend-builder stages, which rarely change
+          # between commits that only touch one service.
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          sbom: true
+          provenance: true
+        id: build
+
+      - name: Attest build provenance
+        # Belt-and-suspenders alongside build-push-action's own
+        # `provenance: true` above — this additionally publishes a signed
+        # attestation to GitHub's transparency log (visible under the
+        # package's "Attestations" tab on GHCR), which `provenance: true`
+        # alone does not do. Skipped on PR builds (nothing was pushed).
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/hdsp-${{ matrix.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  version-manifest:
+    name: Publish version manifest
+    needs: build-and-push
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve version label
+        id: resolve
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Generate manifest
+        run: |
+          mkdir -p dist-manifest
+          cat > dist-manifest/docker-ghcr-manifest.json <<EOF
+          {
+            "hdspVersion": "${{ steps.resolve.outputs.version }}",
+            "gitSha": "${{ github.sha }}",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "registry": "ghcr.io/${{ github.repository_owner }}",
+            "images": [
+              "hdsp-backend",
+              "hdsp-frontend",
+              "hdsp-vendor-backend",
+              "hdsp-vendor-frontend"
+            ]
+          }
+          EOF
+          cat dist-manifest/docker-ghcr-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-ghcr-manifest
+          path: dist-manifest/docker-ghcr-manifest.json
+          retention-days: 90
+
+  deploy-oracle-cloud:
+    name: Deploy to Oracle Cloud
+    needs: [build-and-push, version-manifest]
+    # Never runs for pull_request (see the workflow header note) — only a
+    # push to `main` or a `v*.*.*` release tag can reach this job, and
+    # only after every required PR check + review already passed to let
+    # that commit onto `main` in the first place (branch protection is a
+    # GitHub repo setting, not expressible here — see README_DOCKER.md
+    # § 12). `workflow_dispatch` is also allowed, for a manual
+    # re-deploy of whatever is already the newest published image
+    # (e.g. after fixing a server-side issue), without needing a new
+    # commit.
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment: production   # requires a GitHub Environment named "production" — add required reviewers here for a second, deploy-specific approval gate if desired, on top of the PR review that already happened
+    steps:
+      - name: Skip if Oracle Cloud secrets are not configured
+        id: guard
+        run: |
+          if [ -z "${{ secrets.ORACLE_CLOUD_HOST }}" ]; then
+            echo "ORACLE_CLOUD_HOST secret not set — skipping deploy step. Configure repo/environment secrets per README_DOCKER.md § 12 to enable automatic deployment."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve version to deploy
+        if: steps.guard.outputs.configured == 'true'
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/heads/main ]]; then
+            echo "version=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ vars.HDSP_DEPLOY_VERSION || 'latest' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SSH deploy — pull, migrate, restart, verify
+        if: steps.guard.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.ORACLE_CLOUD_HOST }}
+          username: ${{ secrets.ORACLE_CLOUD_USER }}
+          key: ${{ secrets.ORACLE_CLOUD_SSH_KEY }}
+          port: ${{ secrets.ORACLE_CLOUD_SSH_PORT || 22 }}
+          # Fails (non-zero exit) the whole job on any command failure —
+          # a failed migration or a service that never becomes healthy
+          # stops the deploy here rather than silently leaving the
+          # server half-updated.
+          script_stop: true
+          envs: HDSP_VERSION
+          script: |
+            set -euo pipefail
+            cd "${{ vars.ORACLE_CLOUD_DEPLOY_PATH || '/opt/hdsp' }}"
+
+            export HDSP_VERSION="${HDSP_VERSION}"
+            echo "Deploying HDSP_VERSION=${HDSP_VERSION}"
+
+            # .env.production already lives on the server (never written
+            # by CI — see README_DOCKER.md § 4/§ 9) with HDSP_VERSION
+            # itself overridden by the export above via docker compose's
+            # normal shell-env-overrides-.env-file precedence.
+            docker compose --env-file .env.production pull
+
+            # Bring the databases up first so the one-shot migration
+            # services (unchanged since Phase 3 — see docker-compose.yml's
+            # own "Migrations" note) have something to connect to.
+            docker compose --env-file .env.production --profile migration up -d hdsp-postgres vendor-postgres
+            docker compose --env-file .env.production --profile migration build hdsp-migrate vendor-migrate
+            docker compose --env-file .env.production --profile migration run --rm hdsp-migrate
+            docker compose --env-file .env.production --profile migration run --rm vendor-migrate
+
+            docker compose --env-file .env.production --profile full up -d
+
+            echo "Waiting for services to report healthy..."
+            for i in $(seq 1 30); do
+              BACKEND_OK=$(docker inspect --format='{{.State.Health.Status}}' hdsp-backend 2>/dev/null || echo "starting")
+              VENDOR_OK=$(docker inspect --format='{{.State.Health.Status}}' vendor-backend 2>/dev/null || echo "starting")
+              if [ "$BACKEND_OK" = "healthy" ] && [ "$VENDOR_OK" = "healthy" ]; then
+                echo "Both backends healthy."
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "Timed out waiting for services to become healthy — deploy did NOT verify cleanly. Manual rollback: set HDSP_VERSION to the previous tag and re-run this job (workflow_dispatch), see README_DOCKER.md § 6 Updating."
+                docker compose --env-file .env.production ps
+                exit 1
+              fi
+              sleep 5
+            done
+
+            curl -f http://localhost:3001/api/v1/health/live
+            curl -f http://localhost:3000/
+            curl -f http://localhost:4001/
+
+            echo "Deployment complete — HDSP_VERSION=${HDSP_VERSION} live."

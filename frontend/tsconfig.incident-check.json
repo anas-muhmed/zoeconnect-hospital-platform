@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/app/(platform)/incident/**/*.ts",
+    "src/app/(platform)/incident/**/*.tsx",
+    "src/components/incident/**/*.ts",
+    "src/components/incident/**/*.tsx",
+    "src/hooks/incident/**/*.ts",
+    "src/lib/api/incident.api.ts",
+    "src/lib/constants/incident-routes.ts",
+    "src/lib/constants/incident-permissions.ts",
+    "src/lib/utils/incident-formatters.ts",
+    "src/lib/validations/incident.schema.ts",
+    "src/types/incident.types.ts"
+  ]
+}

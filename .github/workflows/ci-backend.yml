@@ -1,0 +1,357 @@
+name: CI - Backend
+
+# Milestone 1 baseline (docs/architecture/MILESTONE_PLAN.md): lint, typecheck,
+# unit tests only. E2E, contract testing, schema-migration-coverage, and
+# plugin-compatibility checks are added in later milestones per
+# docs/architecture/CONFORMANCE_CHECKS.md.
+#
+# Milestone 3 fix: the `backend` job now builds the shared packages itself
+# before `npm install`, rather than relying on the `packages` job's output —
+# `needs: packages` only sequences jobs, it does NOT share the filesystem
+# across GitHub Actions runners, so `backend`'s `file:../packages/form-schema`
+# dependency (added in Milestone 3) would otherwise fail to resolve on a
+# fresh runner with no `packages/form-schema/dist`. Same fix already applied
+# to ci-frontend.yml for the same reason.
+#
+# Milestone 4: pdfmake added to backend/package.json (generic PDF Engine,
+# ADR-002 Phase 4A §2.1). backend/package-lock.json regenerated accordingly.
+#
+# Phase 12 (Hybrid Architecture roadmap, Task 12.1): switched every
+# `npm install` to `npm ci` -- the "future CI hardening task" flagged above
+# is this change. Verified safe first: root/, backend/, and frontend/ each
+# have a committed package-lock.json in sync with their package.json
+# (`npm ci` fails hard on a missing/out-of-sync lockfile, which is exactly
+# the guarantee wanted here — a silently-drifted lockfile should fail CI,
+# not get quietly re-resolved the way `npm install` would). `connector/`
+# and `packages/oracle-client` are npm workspace members with no lockfile
+# of their own (only the root one) — ci-connector.yml's steps were
+# restructured accordingly, see that file's own comment.
+#
+# Also added this phase: the `e2e-smoke` job below (Task 12.1's "add E2E
+# smoke tests" requirement) and the `storage-s3-conformance` job's
+# inclusion as a required check is now documented in
+# PHASE_12_IMPLEMENTATION_PLAN.md (branch-protection "required status
+# checks" is a GitHub repository setting, not something expressible in
+# this YAML file itself — flagged there rather than silently assumed).
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  packages:
+    name: Shared Packages (form-schema, canvas-engine, canvas-engine-react)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install workspace packages
+        run: npm ci
+      - name: "Build packages (dependency order: form-schema -> canvas-engine -> canvas-engine-react)"
+        run: npm run build:packages
+      - name: Lint packages (typecheck)
+        run: npm run lint:packages
+      - name: Test packages
+        run: npm run test:packages
+
+  backend:
+    name: Backend (NestJS)
+    runs-on: ubuntu-latest
+    needs: packages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: "Install and build shared packages (populates packages/*/dist for file: deps)"
+        run: |
+          npm ci
+          npm run build:packages
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Lint
+        working-directory: backend
+        run: npm run lint
+      - name: Unit tests
+        working-directory: backend
+        run: npm run test
+      - name: Production build (Task 12.1 -- prove the artifact Task 12.2 packages into images actually compiles in CI, not just `tsc --noEmit`)
+        working-directory: backend
+        run: npm run build
+      - name: DEPLOYMENT_MODE usage guardrail
+        # Phase 0 scaffolding (Hybrid Architecture roadmap, Task 0.5): DEPLOYMENT_MODE
+        # is defined but must not be read/consumed anywhere until a later phase
+        # explicitly needs it. This check fails the build if that boundary is
+        # crossed, so any future PR that starts reading the value is caught here
+        # rather than discovered later. Update the allow-list only when a later
+        # roadmap phase legitimately adds a new, reviewed read site.
+        working-directory: backend
+        run: |
+          set -e
+          ALLOWED_ENV_READ_FILE="src/config/deployment.config.ts"
+
+          # 1. process.env.DEPLOYMENT_MODE is only allowed in the one file whose
+          #    entire job is to read it and expose it via ConfigModule.
+          ENV_READ_HITS=$(grep -rln "process\.env\.DEPLOYMENT_MODE" src --include="*.ts" || true)
+          ENV_READ_VIOLATIONS=$(echo "$ENV_READ_HITS" | grep -v "^$ALLOWED_ENV_READ_FILE$" || true)
+          if [ -n "$ENV_READ_VIOLATIONS" ]; then
+            echo "DEPLOYMENT_MODE guardrail failed: process.env.DEPLOYMENT_MODE read outside the allow-list ($ALLOWED_ENV_READ_FILE):"
+            echo "$ENV_READ_VIOLATIONS"
+            exit 1
+          fi
+
+          # 2. No code may consume the deployment config value yet — allow-list is
+          #    empty. Matches config.get('deployment.mode'), config.get('deployment'),
+          #    config.get<...>('deployment...'), etc.
+          CONSUME_HITS=$(grep -rln "config\.get\(<[^>]*>\)\?(['\"]deployment" src --include="*.ts" || true)
+          if [ -n "$CONSUME_HITS" ]; then
+            echo "DEPLOYMENT_MODE guardrail failed: deployment config consumed outside the (currently empty) allow-list:"
+            echo "$CONSUME_HITS"
+            exit 1
+          fi
+
+          echo "DEPLOYMENT_MODE guardrail passed — no unauthorized reads or consumption."
+      - name: Infrastructure import boundary guardrail
+        # Phase 2 (Hybrid Architecture roadmap, Task 2.9): after Tasks 2.1-2.8
+        # moved every legitimate infrastructure touchpoint (storage, Oracle
+        # transport, license provider, notification transport, secrets)
+        # behind an interface with exactly one bound implementation, Business/
+        # Platform code must depend on the interface (imported from
+        # src/modules/platform/infrastructure/**/*.interface.ts, or the DI
+        # tokens in tokens.ts) and never import a concrete
+        # *.provider.ts/*.transport.ts implementation file directly. Only the
+        # small set of *.module.ts files that construct and bind these
+        # providers via a DI token (the "factories") may import them. This
+        # guardrail did not exist before Phase 2 — there was nothing to
+        # tighten an allow-list on, since no infrastructure interfaces had a
+        # bound implementation prior to this phase. Update the allow-list
+        # only when a later roadmap phase legitimately adds a new provider
+        # binding site (e.g. Phase 3's S3StorageProvider wiring into
+        # StorageModule).
+        working-directory: backend
+        run: |
+          set -e
+
+          # Concrete Phase 2 infrastructure implementation files, explicit
+          # list rather than a repo-wide "*.provider.ts"/"*.transport.ts"
+          # glob -- a blanket glob also matches unrelated pre-existing
+          # providers with no connection to this phase's four interfaces
+          # (e.g. common/redis/redis.provider.ts, Stage B's
+          # tenant-scoped-repository.provider.ts, the AI-platform adapters,
+          # document-platform's classifier/OCR providers). Only these five
+          # are in scope for the boundary this guardrail enforces. Add a new
+          # line here only when a later roadmap phase legitimately adds a
+          # new provider binding (e.g. Phase 3's S3StorageProvider).
+          PROVIDER_FILES="src/modules/platform/services/object-repository/providers/local-storage.provider.ts
+          src/modules/platform/services/object-repository/providers/s3-storage.provider.ts
+          src/modules/his/direct-oracle.transport.ts
+          src/modules/his/cloud-oracle.transport.ts
+          src/modules/licensing/providers/file-license.provider.ts
+          src/modules/licensing/providers/subscription-license.provider.ts
+          src/modules/notifications/providers/whatsapp.transport.ts
+          src/modules/notifications/providers/local-notification.provider.ts
+          src/modules/notifications/providers/cloud-notification.provider.ts
+          src/modules/platform/infrastructure/secrets/environment-secrets.provider.ts"
+
+          # Module files allowed to import one of the above, because binding
+          # it to its DI token is precisely their job.
+          ALLOWED_BINDING_FILES="src/modules/platform/services/object-repository/object-repository.module.ts
+          src/modules/his/config/his-config.module.ts
+          src/modules/licensing/license.module.ts
+          src/modules/notifications/notification.module.ts
+          src/modules/platform/infrastructure/platform-infrastructure.module.ts"
+
+          VIOLATIONS=""
+          for PROVIDER_FILE in $PROVIDER_FILES; do
+            if [ ! -f "$PROVIDER_FILE" ]; then
+              continue
+            fi
+            STEM=$(basename "$PROVIDER_FILE" .ts)
+            HITS=$(grep -rl "from ['\"].*${STEM}['\"]" src --include="*.ts" || true)
+            for HIT in $HITS; do
+              # A provider file importing its own interface, or matching
+              # itself, is not a violation -- only flag a DIFFERENT file
+              # importing it.
+              if [ "$HIT" = "$PROVIDER_FILE" ]; then
+                continue
+              fi
+              if echo "$ALLOWED_BINDING_FILES" | grep -qx "$HIT"; then
+                continue
+              fi
+              VIOLATIONS="$VIOLATIONS\n$HIT -> imports $PROVIDER_FILE"
+            done
+          done
+
+          if [ -n "$VIOLATIONS" ]; then
+            echo "Infrastructure import boundary guardrail failed: business/platform code must depend on an interface (src/modules/platform/infrastructure/**/*.interface.ts) or DI token (tokens.ts), never a concrete provider/transport implementation directly:"
+            echo -e "$VIOLATIONS"
+            exit 1
+          fi
+
+          echo "Infrastructure import boundary guardrail passed — every concrete provider/transport is only imported by its own binding module."
+
+  storage-s3-conformance:
+    name: Storage - S3 Provider Conformance (MinIO)
+    runs-on: ubuntu-latest
+    needs: packages
+    # Phase 3 ("Storage Providers"): S3StorageProvider's conformance suite
+    # (src/modules/platform/services/object-repository/providers/__tests__/
+    # s3-storage-provider.conformance.spec.ts) needs a real S3-compatible
+    # endpoint, not a mock -- MinIO is that endpoint in CI. This is a
+    # separate job (not folded into the main "backend" job) so a MinIO
+    # outage/flake only fails storage conformance, not the whole build, and
+    # so the main unit-test run stays fast and dependency-free for everyone
+    # who isn't touching storage code.
+    services:
+      minio:
+        image: minio/minio:latest
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        # The official minio/minio image's entrypoint requires an explicit
+        # command (it doesn't default to `server /data`); GitHub Actions
+        # service containers can't override entrypoint/cmd directly, so this
+        # relies on the image's default CMD already being a server start --
+        # if a future MinIO image drops that default, switch this job to a
+        # plain `docker run` step instead of `services:`.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install and build shared packages
+        run: |
+          npm ci
+          npm run build:packages
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Wait for MinIO
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 2
+          done
+      - name: Create conformance bucket
+        run: |
+          docker run --rm --network host minio/mc:latest \
+            sh -c "mc alias set local http://localhost:9000 minioadmin minioadmin && mc mb -p local/hdsp-conformance"
+      - name: Run S3 conformance suite
+        working-directory: backend
+        env:
+          RUN_S3_CONFORMANCE_TESTS: 'true'
+          S3_BUCKET: hdsp-conformance
+          S3_REGION: us-east-1
+          S3_ACCESS_KEY_ID: minioadmin
+          S3_SECRET_ACCESS_KEY: minioadmin
+          S3_ENDPOINT: http://localhost:9000
+          S3_FORCE_PATH_STYLE: 'true'
+        run: npm run test -- s3-storage-provider.conformance.spec.ts
+
+  e2e-smoke:
+    name: E2E Smoke (boot against real Postgres + Redis)
+    runs-on: ubuntu-latest
+    needs: packages
+    # Phase 12 (Task 12.1's "add E2E smoke tests"). Deliberately narrow: this
+    # proves the compiled app actually BOOTS against real infrastructure
+    # dependencies (migrations apply, NestJS bootstraps, DB/Redis health
+    # checks pass) -- something no existing job checked. It is NOT a full
+    # HTTP contract/regression suite (docs/architecture/MILESTONE_PLAN.md
+    # already defers that to a later milestone) and it does NOT stand up
+    # Oracle, S3, or a Connector -- ORACLE_HOST is left unset (optional per
+    # env.validation.ts) and `/health` (the full check, which pings Oracle)
+    # is intentionally not asserted here; only `/health/live` (process up)
+    # and `/health/ready` (DB + Redis only, per app.controller.ts) are.
+    services:
+      postgres:
+        image: postgres:15
+        ports: ['5432:5432']
+        env:
+          POSTGRES_USER: hdsp
+          POSTGRES_PASSWORD: hdsp_ci_password
+          POSTGRES_DB: hdsp_e2e_smoke
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install and build shared packages
+        run: |
+          npm ci
+          npm run build:packages
+      - name: Install and build backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+      - name: Run migrations
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_NAME: hdsp_e2e_smoke
+          DB_USER: hdsp
+          DB_PASSWORD: hdsp_ci_password
+          REDIS_HOST: localhost
+          REDIS_PORT: '6379'
+          JWT_SECRET: e2e-smoke-jwt-secret-at-least-32-characters-long
+          JWT_REFRESH_SECRET: e2e-smoke-refresh-secret-at-least-32-characters
+        run: npm run migration:run
+      - name: Boot the app and poll health endpoints
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          PORT: '3000'
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_NAME: hdsp_e2e_smoke
+          DB_USER: hdsp
+          DB_PASSWORD: hdsp_ci_password
+          REDIS_HOST: localhost
+          REDIS_PORT: '6379'
+          JWT_SECRET: e2e-smoke-jwt-secret-at-least-32-characters-long
+          JWT_REFRESH_SECRET: e2e-smoke-refresh-secret-at-least-32-characters
+          PROCESS_ROLE: all
+        run: |
+          set -e
+          node dist/main &
+          APP_PID=$!
+          trap "kill $APP_PID" EXIT
+
+          echo "Waiting for /health/live..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/v1/health/live; then break; fi
+            sleep 2
+            if [ "$i" -eq 30 ]; then echo "App never became live"; exit 1; fi
+          done
+
+          echo "Checking /health/ready (DB + Redis)..."
+          curl -sf http://localhost:3000/api/v1/health/ready || { echo "Readiness check failed"; exit 1; }
+
+          echo "E2E smoke check passed: app booted, migrations applied, DB + Redis reachable."

@@ -1,0 +1,56 @@
+name: CI - Frontend
+
+# Milestone 1 baseline: lint and typecheck only. The frontend has no test
+# framework configured yet — unit/component test jobs are added once a
+# framework is introduced starting Milestone 3.
+#
+# Milestone 2 addition (docs/architecture/MILESTONE_PLAN.md — "Canvas Core"):
+# the frontend now depends on @hdsp/canvas-engine and @hdsp/canvas-engine-react
+# via `file:../packages/...` references (the Milestone 2 canvas sandbox route,
+# /dev/canvas-sandbox), so those packages must be installed and built in the
+# same job, before `npm install` in frontend/ can resolve their `dist/` output.
+#
+# Phase 12 (Hybrid Architecture roadmap, Task 12.1/12.2): switched to
+# `npm ci` (frontend/package-lock.json is committed and in sync) and added a
+# production build step -- proves the exact artifact `frontend.Dockerfile`
+# (Phase 9) packages into an image actually compiles, not just type-checks.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: "Install and build shared packages (populates packages/*/dist for file: deps)"
+        run: |
+          npm ci
+          npm run build:packages
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Type check
+        working-directory: frontend
+        run: npm run type-check
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Production build
+        working-directory: frontend
+        env:
+          # CI-only placeholder -- the real value is baked in per-environment
+          # by `infrastructure/docker/frontend.Dockerfile`'s own
+          # NEXT_PUBLIC_API_URL build ARG (Phase 9) at image-build time
+          # (Task 12.2). This step only proves the Next.js build itself
+          # succeeds, not that this specific URL is correct for any
+          # deployment.
+          NEXT_PUBLIC_API_URL: https://ci-placeholder.invalid/api
+        run: npm run build

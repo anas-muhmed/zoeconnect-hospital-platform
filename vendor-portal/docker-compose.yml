@@ -1,0 +1,66 @@
+version: '3.9'
+
+services:
+  vendor_postgres:
+    image: postgres:15-alpine
+    container_name: vendor_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       vendor_db
+      POSTGRES_USER:     vendor_app
+      POSTGRES_PASSWORD: vendor_secret
+    ports:
+      - '5433:5432'
+    volumes:
+      - vendor_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vendor_app -d vendor_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vendor_backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vendor_backend
+    restart: unless-stopped
+    depends_on:
+      vendor_postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV:                 production
+      PORT:                     4000
+      DB_HOST:                  vendor_postgres
+      DB_PORT:                  5432
+      DB_USER:                  vendor_app
+      DB_PASS:                  vendor_secret
+      DB_NAME:                  vendor_db
+      JWT_SECRET:               ${JWT_SECRET:-change-this-vendor-jwt-secret}
+      DEFAULT_ADMIN_PASSWORD:   ${DEFAULT_ADMIN_PASSWORD:-VendorAdmin@123}
+      CORS_ORIGIN:              ${CORS_ORIGIN:-http://localhost:3001}
+    ports:
+      - '4000:4000'
+    volumes:
+      - ./keys:/app/keys:ro       # RSA private key — read-only mount
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:4000/api/auth/login || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  vendor_frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vendor_frontend
+    restart: unless-stopped
+    depends_on:
+      - vendor_backend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+    ports:
+      - '3001:3001'
+
+volumes:
+  vendor_pg_data:

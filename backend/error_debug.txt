@@ -1,0 +1,10 @@
+QueryFailedError: column distinctAlias.User_id does not exist
+    at PostgresQueryRunner.query (D:\HDSP_TEST\HDSP\backend\node_modules\typeorm\driver\postgres\PostgresQueryRunner.js:216:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async SelectQueryBuilder.loadRawResults (D:\HDSP_TEST\HDSP\backend\node_modules\typeorm\query-builder\SelectQueryBuilder.js:2227:25)
+    at async SelectQueryBuilder.getRawMany (D:\HDSP_TEST\HDSP\backend\node_modules\typeorm\query-builder\SelectQueryBuilder.js:624:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\HDSP_TEST\HDSP\backend\node_modules\typeorm\query-builder\SelectQueryBuilder.js:2014:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\HDSP_TEST\HDSP\backend\node_modules\typeorm\query-builder\SelectQueryBuilder.js:662:29)
+    at async SelectQueryBuilder.getOne (D:\HDSP_TEST\HDSP\backend\node_modules\typeorm\query-builder\SelectQueryBuilder.js:689:25)
+    at async UsersService.update (D:\HDSP_TEST\HDSP\backend\dist\modules\users\users.service.js:158:27)
+    at async UsersController.update (D:\HDSP_TEST\HDSP\backend\dist\modules\users\users.controller.js:44:20)

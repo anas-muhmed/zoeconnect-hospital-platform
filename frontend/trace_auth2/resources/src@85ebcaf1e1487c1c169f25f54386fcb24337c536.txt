@@ -1,0 +1,38 @@
+import { test as setup, expect } from '@playwright/test';
+import path from 'path';
+
+const personas = [
+  { username: 'admin', password: 'password', file: '../.auth/admin.json' },
+  { username: 'reporter', password: 'password', file: '../.auth/reporter.json' },
+  { username: 'investigator', password: 'password', file: '../.auth/investigator.json' },
+  { username: 'qm', password: 'password', file: '../.auth/qm.json' },
+  { username: 'tenant_b_user', password: 'password', file: '../.auth/tenant_b_user.json' }
+];
+
+for (const persona of personas) {
+  setup(`authenticate as ${persona.username}`, async ({ page }) => {
+    if (persona.username === 'tenant_b_user') {
+      await page.goto('http://tenant-b.localtest.me:3000/login');
+    } else {
+      await page.goto('/login');
+    }
+    await page.fill('input[name="username"]', persona.username);
+    await page.fill('input[name="password"]', persona.password);
+    
+    // Check if there is an organization code field or similar, 
+    // usually in multi-tenant enterprise apps there is an org code, but here tenant is derived from subdomain or it's a dropdown?
+    // Looking at login/page.tsx, it only asks for username and password.
+    
+    await page.click('button[type="submit"]');
+
+    // Wait for successful login (usually redirects to dashboard or home)
+    await page.waitForURL('**/*dashboard*'); // adjust depending on app behavior
+    
+    // Save state
+    await page.context().storageState({ path: path.join(__dirname, persona.file) });
+
+    // Playwright doesn't save sessionStorage, so save it manually
+    const sessionData = await page.evaluate(() => JSON.stringify(sessionStorage));
+    require('fs').writeFileSync(path.join(__dirname, persona.file.replace('.json', '-session.json')), sessionData);
+  });
+}

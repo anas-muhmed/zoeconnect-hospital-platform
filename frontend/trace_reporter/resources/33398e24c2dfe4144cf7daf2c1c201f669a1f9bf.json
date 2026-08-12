@@ -1,0 +1,1 @@
+{"statusCode":400,"message":"property severity should not exist; property priority should not exist; severityCode should not be empty; severityCode must be a string","error":"Bad Request","requestId":"d5fc75ce-1e69-4352-856c-e4ebfe94fde4","timestamp":"2026-07-27T15:11:44.261Z","path":"/api/v1/incident"}

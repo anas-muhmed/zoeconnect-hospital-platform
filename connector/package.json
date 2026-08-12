@@ -1,0 +1,43 @@
+{
+  "name": "@hdsp/connector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZoeConnect Connector -- standalone Oracle Connector Windows Service (\"ZoeConnect Connector 1.0 Deployment,\" 2026-07-22). Wraps @hdsp/oracle-client behind the Message Transport protocol so ZoeConnect's cloud backend (CloudOracleTransport) can talk to an on-prem Oracle HIS instance without a direct network path, and serves the versioned local REST API (/api/v1) + Connector Manager UI a hospital IT admin uses to activate, configure, and diagnose it. Bumped 0.1.0 -> 1.0.0 with the feature-freeze declared at the end of Task #103: activation, registration, JWT lifecycle, WebSocket transport, query-definition sync, the local API, the Manager UI, the system tray, Oracle configuration, and diagnostics are all considered feature-complete for this release; remaining work is packaging (Task #96), Windows validation, and hospital pilot, not new capabilities. See HDSP_CLOUD_CONNECTOR_ARCHITECTURE.md §18 for the versioning discipline this number is part of (Connector 1.0.0 / Connector Protocol v1 / local API v1, versioned independently).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "hdsp-connector": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "package": "npm run build && pkg . --output ../connector-installer/build/connector.exe"
+  },
+  "dependencies": {
+    "@hdsp/oracle-client": "file:../packages/oracle-client",
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.0",
+    "@types/supertest": "^6.0.2",
+    "jest": "^29.7.0",
+    "pkg": "^5.8.1",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.5"
+  },
+  "pkg": {
+    "//": "ZoeConnect Connector 1.0 Deployment, Phase 1 (Packaging), 2026-07-22. Targets Windows x64 only -- this ships as a Windows Service; Linux/macOS targets aren't part of this product's distribution story. 'thin' mode node-oracledb is pure JS (no native addon), so no oracledb native binary needs special pkg asset handling -- if a hospital ever needs 'thick' mode, that requires a separately-installed Oracle Instant Client on the target machine regardless of how this binary is built, per @hdsp/oracle-client's own existing thick-mode handling (instantClientPath).",
+    "targets": ["node18-win-x64"],
+    "assets": [
+      "node_modules/oracledb/**/*"
+    ]
+  }
+}
