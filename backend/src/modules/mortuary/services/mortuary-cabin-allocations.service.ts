@@ -26,10 +26,11 @@ import { computeStayCharge } from '../utils/billing-math.util';
  *  3. A cabin cannot hold more than one active allocation at a time.
  *  4. An MLC case explicitly marked as NOT requiring a freezer
  *     (`freezerRequired === 0`) cannot be allocated a cabin at all.
- *  5. Advance amount is Admin-policy: only an admin-tier caller may
- *     override the hospital's configured minimum; everyone else's request
- *     silently uses the minimum regardless of what they sent (`isAdmin` on
- *     `MortuaryRequestContext` — see that file's own caveat).
+ *  5. Advance amount is Admin-policy: only a caller holding
+ *     MORTUARY:ALLOCATIONS:OVERRIDE_ADVANCE may override the hospital's
+ *     configured minimum; everyone else's request silently uses the
+ *     minimum regardless of what they sent (`canOverrideAllocationAdvance`
+ *     on `MortuaryRequestContext` — see that file's own doc comment).
  *  6. Estimated days of stay: allocation-time override if given, else the
  *     body's own recorded `estimatedDaysOfStay`, else a 3-day fallback —
  *     ported in this exact priority order (source comment: the frontend no
@@ -75,7 +76,7 @@ export class MortuaryCabinAllocationsService {
     if (!cabin) throw new NotFoundException('Cabin not found');
 
     const minimumAdvance = await this.settingsService.getMinimumAdvance(tenantId);
-    const parsedAdvance = context.isAdmin ? Number(dto.advanceAmount) || 0 : minimumAdvance;
+    const parsedAdvance = context.canOverrideAllocationAdvance ? Number(dto.advanceAmount) || 0 : minimumAdvance;
     if (parsedAdvance < minimumAdvance) {
       throw new BadRequestException(`Advance collection is mandatory and must be at least ₹${minimumAdvance}`);
     }

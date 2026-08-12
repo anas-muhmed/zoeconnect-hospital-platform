@@ -164,7 +164,7 @@ export class MortuaryBillingService {
         serviceBillId = uuidv4();
         const dressingService = await this.serviceMasterRepo.findOne({ where: { tenantId, serviceName: ILike('%dressing%') } });
         const approvedTariff = dressingService ? Number(dressingService.tariff) : 500.0;
-        const charge = context.isAdmin ? Number(dto.bodyDressingCharge) || 0 || approvedTariff : approvedTariff;
+        const charge = context.canOverrideBillingCharge ? Number(dto.bodyDressingCharge) || 0 || approvedTariff : approvedTariff;
 
         await manager.insert(MortuaryServiceBilling, {
           id: serviceBillId,

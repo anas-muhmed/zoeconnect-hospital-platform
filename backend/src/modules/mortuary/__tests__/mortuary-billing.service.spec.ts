@@ -59,7 +59,7 @@ describe('MortuaryBillingService.generate — staff welfare discount', () => {
   });
 
   it('applies the tenant-configured staff discount percentage, not a hardcoded 100%', async () => {
-    const context: MortuaryRequestContext = { tenantId: TENANT_ID, userId: 'u1', isAdmin: true };
+    const context: MortuaryRequestContext = { tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true };
     await service.generate(context, { bodyId: 'body-1', totalAmount: 1000, staffConcession: true } as any);
 
     expect(settingsService.getStaffDiscountPercent).toHaveBeenCalledWith(TENANT_ID);
@@ -70,7 +70,7 @@ describe('MortuaryBillingService.generate — staff welfare discount', () => {
   });
 
   it('does not apply any staff discount when staffConcession is not set', async () => {
-    const context: MortuaryRequestContext = { tenantId: TENANT_ID, userId: 'u1', isAdmin: true };
+    const context: MortuaryRequestContext = { tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true };
     await service.generate(context, { bodyId: 'body-1', totalAmount: 1000, discountAmount: 50 } as any);
 
     expect(settingsService.getStaffDiscountPercent).not.toHaveBeenCalled();

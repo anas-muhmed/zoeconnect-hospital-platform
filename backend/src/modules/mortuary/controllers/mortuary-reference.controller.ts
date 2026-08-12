@@ -4,12 +4,12 @@ import { TenantContextInterceptor } from '../../platform/tenant/context/tenant-c
 import { MortuaryBodyTypesService } from '../services/mortuary-body-types.service';
 
 /**
- * Mortuary integration (Phase 2, Stage C). Ports the `GET /body-types`
- * endpoint. `@RequirePermissions()`/`PermissionsGuard` deferred to Stage D
- * (see Stage C report) — `JwtAuthGuard` + `TenantContextInterceptor` are
- * wired now because `TenantScopedRepository` (used elsewhere in this
- * module) requires ambient tenant context to function at all, not as a
- * substitute for the fine-grained RBAC audit.
+ * Mortuary integration (Phase 2, Stage D). Ports the `GET /body-types`
+ * endpoint. Deliberately left permission-free (authentication only): this
+ * is global, static, harmless reference data (MLC/Non-MLC, Stage A/B
+ * verified not tenant-scoped) every Mortuary role needs to render a
+ * dropdown — gating it behind a dedicated MORTUARY:BODY_TYPES:READ
+ * permission would add a permission with no real access-control value.
  */
 @UseGuards(JwtAuthGuard)
 @UseInterceptors(TenantContextInterceptor)

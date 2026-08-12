@@ -164,6 +164,7 @@ import { AddPeriodEndToBillingSubscriptionItems1791600000000 } from './migration
 import { DeactivateTokenQueueModule1791700000000 } from './migrations/1791700000000-DeactivateTokenQueueModule';
 import { EnsureCoreModuleRegistryRows1791800000000 } from './migrations/1791800000000-EnsureCoreModuleRegistryRows';
 import { CreateMortuarySchema1792000000000 } from './migrations/1792000000000-CreateMortuarySchema';
+import { SeedMortuaryRbac1793000000000 } from './migrations/1793000000000-SeedMortuaryRbac';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -339,6 +340,7 @@ export const AppDataSource = new DataSource({
     DeactivateTokenQueueModule1791700000000,
     EnsureCoreModuleRegistryRows1791800000000,
     CreateMortuarySchema1792000000000,
+    SeedMortuaryRbac1793000000000,
   ],
   migrationsTableName: 'typeorm_migrations',
 });

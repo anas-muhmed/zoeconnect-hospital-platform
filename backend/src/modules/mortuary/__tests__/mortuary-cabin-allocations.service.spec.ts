@@ -73,14 +73,14 @@ describe('MortuaryCabinAllocationsService.create', () => {
   it('rejects when the body does not exist for this tenant', async () => {
     scopedBodyRepo.findOneBy.mockResolvedValue(null);
     await expect(
-      service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: false }, { bodyId: 'body-1', cabinId: 'cabin-1' }),
+      service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: false, canOverrideBillingCharge: false }, { bodyId: 'body-1', cabinId: 'cabin-1' }),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('rejects a non-admin advance below the configured minimum by silently using the minimum, not erroring — matches source: non-admin can never send an insufficient advance since it is ignored', async () => {
     scopedAllocationRepo.findOneBy.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
     await expect(
-      service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: false }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 1 }),
+      service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: false, canOverrideBillingCharge: false }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 1 }),
     ).resolves.toBeDefined();
     // The transaction's insert call must have used the minimum (2100), not the client-sent 1.
     const insertedAllocation = dataSource.transaction.mock.results[0].value;
@@ -89,7 +89,7 @@ describe('MortuaryCabinAllocationsService.create', () => {
 
   it('rejects an admin-supplied advance below the configured minimum', async () => {
     await expect(
-      service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 500 }),
+      service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 500 }),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -98,7 +98,7 @@ describe('MortuaryCabinAllocationsService.create', () => {
       where.bodyId ? Promise.resolve({ id: 'existing-alloc' }) : Promise.resolve(null),
     );
     await expect(
-      service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 }),
+      service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 }),
     ).rejects.toThrow('Body already has an active cabin allocation');
   });
 
@@ -107,14 +107,14 @@ describe('MortuaryCabinAllocationsService.create', () => {
       where.cabinId ? Promise.resolve({ id: 'existing-alloc' }) : Promise.resolve(null),
     );
     await expect(
-      service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 }),
+      service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 }),
     ).rejects.toThrow('This cabin is already occupied by another body');
   });
 
   it('rejects an MLC body explicitly marked as not requiring a freezer', async () => {
     scopedBodyRepo.findOneBy.mockResolvedValue(makeBody({ bodyType: 'MLC', freezerRequired: 0 }));
     await expect(
-      service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 }),
+      service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 }),
     ).rejects.toThrow('This MLC case does not require a freezer. Cabin allocation is not applicable.');
   });
 
@@ -122,7 +122,7 @@ describe('MortuaryCabinAllocationsService.create', () => {
     scopedAllocationRepo.findOneBy
       .mockResolvedValueOnce(null) // fetch-after-create at the end of create()
       .mockResolvedValue(null); // active-allocation checks during validation
-    const result = await service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 });
+    const result = await service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 });
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(result).toBeDefined();
   });
@@ -159,7 +159,7 @@ describe('MortuaryCabinAllocationsService.create', () => {
 
     it('uses the allocation-time override when given, even if the body has its own recorded value', async () => {
       scopedBodyRepo.findOneBy.mockResolvedValue(makeBody({ estimatedDaysOfStay: 10 }));
-      await service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100, estimatedDaysOfStay: 5 });
+      await service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100, estimatedDaysOfStay: 5 });
       const expected = new Date(admissionFixedNow);
       expected.setDate(expected.getDate() + 5);
       expected.setHours(23, 59, 0, 0);
@@ -168,7 +168,7 @@ describe('MortuaryCabinAllocationsService.create', () => {
 
     it('falls back to the body\'s own recorded estimatedDaysOfStay when no override is given', async () => {
       scopedBodyRepo.findOneBy.mockResolvedValue(makeBody({ estimatedDaysOfStay: 7 }));
-      await service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 });
+      await service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 });
       const expected = new Date(admissionFixedNow);
       expected.setDate(expected.getDate() + 7);
       expected.setHours(23, 59, 0, 0);
@@ -177,7 +177,7 @@ describe('MortuaryCabinAllocationsService.create', () => {
 
     it('falls back to 3 days when neither an override nor the body\'s own value is present', async () => {
       scopedBodyRepo.findOneBy.mockResolvedValue(makeBody({ estimatedDaysOfStay: null }));
-      await service.create({ tenantId: TENANT_ID, userId: 'u1', isAdmin: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 });
+      await service.create({ tenantId: TENANT_ID, userId: 'u1', canOverrideAllocationAdvance: true, canOverrideBillingCharge: true }, { bodyId: 'body-1', cabinId: 'cabin-1', advanceAmount: 2100 });
       const expected = new Date(admissionFixedNow);
       expected.setDate(expected.getDate() + 3);
       expected.setHours(23, 59, 0, 0);
