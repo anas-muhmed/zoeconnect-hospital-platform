@@ -256,6 +256,20 @@ async function bootstrap() {
     decorateReply: false,
   });
 
+  // ── Static files — LifeGenX consultation audio uploads ────────────────────
+  // Same unauthenticated-static-asset pattern as display-media/cms-media/
+  // feedback-media above (existing platform-wide convention, not something
+  // introduced for LifeGenX) -- flagged in the integration report as a
+  // pre-existing pattern worth revisiting given these files are patient
+  // consultation recordings, not purely cosmetic media.
+  const lifegenxUploadDir = path.join(__dirname, '..', 'uploads', 'lifegenx-audio');
+  fs.mkdirSync(lifegenxUploadDir, { recursive: true });
+  await app.register(fastifyStatic, {
+    root: lifegenxUploadDir,
+    prefix: '/uploads/lifegenx-audio/',
+    decorateReply: false,
+  });
+
   // ── Compression ───────────────────────────────────────────────────────────
   await app.register(compression, {
     encodings: ['gzip', 'deflate'],

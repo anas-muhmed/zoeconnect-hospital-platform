@@ -111,6 +111,7 @@ import { MortuaryModule } from './modules/mortuary/mortuary.module';
 // zoe-platform integration — Drug Indenting (ZoeConnect delivery phase).
 import { DrugIndentingModule } from './modules/drug-indenting/drug-indenting.module';
 import { ClinigrowthModule } from './modules/clinigrowth/clinigrowth.module';
+import { LifeGenXModule } from './modules/lifegenx/lifegenx.module';
 
 @Module({
   imports: [
@@ -258,6 +259,7 @@ import { ClinigrowthModule } from './modules/clinigrowth/clinigrowth.module';
     MortuaryModule,
     DrugIndentingModule,
     ClinigrowthModule,
+    LifeGenXModule,
   ],
   controllers: [AppController],
   providers: [
