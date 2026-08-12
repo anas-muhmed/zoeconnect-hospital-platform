@@ -9,19 +9,53 @@ import { MortuaryBody } from './entities/mortuary-body.entity';
 import { MortuaryCabin } from './entities/mortuary-cabin.entity';
 import { MortuaryCabinAllocation } from './entities/mortuary-cabin-allocation.entity';
 import { MortuaryBilling } from './entities/mortuary-billing.entity';
-import { MortuaryBillingService } from './entities/mortuary-billing-service.entity';
+import { MortuaryBillingService as MortuaryBillingServiceEntity } from './entities/mortuary-billing-service.entity';
 import { MortuaryServiceBilling } from './entities/mortuary-service-billing.entity';
 import { MortuaryServiceMaster } from './entities/mortuary-service-master.entity';
 import { MortuaryBodyRelease } from './entities/mortuary-body-release.entity';
 import { MortuaryHousekeepingTask } from './entities/mortuary-housekeeping-task.entity';
 
+import { createTenantScopedRepositoryProvider } from '../platform/tenant/repositories/tenant-scoped-repository.provider';
+
+import { MortuaryBodyTypesService } from './services/mortuary-body-types.service';
+import { MortuaryConcessionAuthoritiesService } from './services/mortuary-concession-authorities.service';
+import { MortuarySettingsService } from './services/mortuary-settings.service';
+import { MortuaryCabinsService } from './services/mortuary-cabins.service';
+import { MortuaryServiceMasterService } from './services/mortuary-service-master.service';
+import { MortuaryBodiesService } from './services/mortuary-bodies.service';
+import { MortuaryCabinAllocationsService } from './services/mortuary-cabin-allocations.service';
+import { MortuaryBillingService } from './services/mortuary-billing.service';
+import { MortuaryBodyReleasesService } from './services/mortuary-body-releases.service';
+import { MortuaryHousekeepingService } from './services/mortuary-housekeeping.service';
+
+import { MortuaryReferenceController } from './controllers/mortuary-reference.controller';
+import { MortuaryConcessionAuthoritiesController } from './controllers/mortuary-concession-authorities.controller';
+import { MortuarySettingsController } from './controllers/mortuary-settings.controller';
+import { MortuaryCabinsController } from './controllers/mortuary-cabins.controller';
+import { MortuaryServiceMasterController } from './controllers/mortuary-service-master.controller';
+import { MortuaryBodiesController } from './controllers/mortuary-bodies.controller';
+import { MortuaryCabinAllocationsController } from './controllers/mortuary-cabin-allocations.controller';
+import { MortuaryBillingController, MortuaryServiceBillingController } from './controllers/mortuary-billing.controller';
+import { MortuaryBodyReleasesController } from './controllers/mortuary-body-releases.controller';
+import { MortuaryHousekeepingController } from './controllers/mortuary-housekeeping.controller';
+
 /**
  * zoe-platform Mortuary module integration (Phase 2).
  *
- * Stage A: entities + module registration only. Controllers/services/DTOs
- * are added in Stage C once auth/RBAC/tenant wiring (Stage D) and the
- * business-logic port are ready — this module intentionally exposes
- * nothing yet.
+ * Stage C: core business-logic services + controllers + DTOs for the body
+ * registration -> cabin allocation -> billing -> release -> housekeeping
+ * workflow, plus its supporting reference data (body types, concession
+ * authorities, service master, tenant settings). See the Stage C report
+ * for exactly what was ported, what was deferred (uploads/Stage E,
+ * hospital CRUD/already ZoeConnect's job, dashboard+reports, staff
+ * approval workflow/Stage D auth), and every business rule/bug
+ * disposition.
+ *
+ * `TenantScopedRepository` providers below cover every tenant-scoped
+ * entity except `MortuaryBodyType` (verified global reference data,
+ * Stage A/B) and `MortuaryHospitalProfile`/`MortuaryStaffProfile` reads,
+ * which currently only need the plain repository (staff-profile lifecycle
+ * itself is Stage D scope).
  */
 @Module({
   imports: [
@@ -35,15 +69,53 @@ import { MortuaryHousekeepingTask } from './entities/mortuary-housekeeping-task.
       MortuaryCabin,
       MortuaryCabinAllocation,
       MortuaryBilling,
-      MortuaryBillingService,
+      MortuaryBillingServiceEntity,
       MortuaryServiceBilling,
       MortuaryServiceMaster,
       MortuaryBodyRelease,
       MortuaryHousekeepingTask,
     ]),
   ],
-  controllers: [],
-  providers: [],
+  controllers: [
+    MortuaryReferenceController,
+    MortuaryConcessionAuthoritiesController,
+    MortuarySettingsController,
+    MortuaryCabinsController,
+    MortuaryServiceMasterController,
+    MortuaryBodiesController,
+    MortuaryCabinAllocationsController,
+    MortuaryBillingController,
+    MortuaryServiceBillingController,
+    MortuaryBodyReleasesController,
+    MortuaryHousekeepingController,
+  ],
+  providers: [
+    // Services
+    MortuaryBodyTypesService,
+    MortuaryConcessionAuthoritiesService,
+    MortuarySettingsService,
+    MortuaryCabinsService,
+    MortuaryServiceMasterService,
+    MortuaryBodiesService,
+    MortuaryCabinAllocationsService,
+    MortuaryBillingService,
+    MortuaryBodyReleasesService,
+    MortuaryHousekeepingService,
+    // Tenant-scoped repository providers (Step 4)
+    createTenantScopedRepositoryProvider(MortuaryHospitalProfile),
+    createTenantScopedRepositoryProvider(MortuarySystemSettings),
+    createTenantScopedRepositoryProvider(MortuaryStaffProfile),
+    createTenantScopedRepositoryProvider(MortuaryConcessionAuthority),
+    createTenantScopedRepositoryProvider(MortuaryBody),
+    createTenantScopedRepositoryProvider(MortuaryCabin),
+    createTenantScopedRepositoryProvider(MortuaryCabinAllocation),
+    createTenantScopedRepositoryProvider(MortuaryBilling),
+    createTenantScopedRepositoryProvider(MortuaryBillingServiceEntity),
+    createTenantScopedRepositoryProvider(MortuaryServiceBilling),
+    createTenantScopedRepositoryProvider(MortuaryServiceMaster),
+    createTenantScopedRepositoryProvider(MortuaryBodyRelease),
+    createTenantScopedRepositoryProvider(MortuaryHousekeepingTask),
+  ],
   exports: [],
 })
 export class MortuaryModule {}
