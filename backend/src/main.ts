@@ -256,19 +256,12 @@ async function bootstrap() {
     decorateReply: false,
   });
 
-  // ── Static files — LifeGenX consultation audio uploads ────────────────────
-  // Same unauthenticated-static-asset pattern as display-media/cms-media/
-  // feedback-media above (existing platform-wide convention, not something
-  // introduced for LifeGenX) -- flagged in the integration report as a
-  // pre-existing pattern worth revisiting given these files are patient
-  // consultation recordings, not purely cosmetic media.
-  const lifegenxUploadDir = path.join(__dirname, '..', 'uploads', 'lifegenx-audio');
-  fs.mkdirSync(lifegenxUploadDir, { recursive: true });
-  await app.register(fastifyStatic, {
-    root: lifegenxUploadDir,
-    prefix: '/uploads/lifegenx-audio/',
-    decorateReply: false,
-  });
+  // LifeGenX consultation audio is intentionally NOT registered as a static
+  // mount here (whole-system audit, Step 10 finding — patient recordings
+  // were reachable with zero authentication and no tenant check). Audio is
+  // served exclusively through `LifeGenXAudioController.download`, behind
+  // JwtAuthGuard/PermissionsGuard plus an explicit tenant-ownership check
+  // in `LifeGenXAudioService.retrieve()`.
 
   // ── Compression ───────────────────────────────────────────────────────────
   await app.register(compression, {
