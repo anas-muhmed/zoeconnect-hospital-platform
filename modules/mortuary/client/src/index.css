@@ -1,0 +1,138 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  /* This app has no built dark theme - declaring "light dark" here told the
+     browser it was safe to auto-apply native dark styling to unstyled form
+     controls (inputs, selects) when the OS/browser prefers dark. Every
+     input in the app sets its border color but not its background/text, so
+     that auto-dark styling made input boxes go near-black with barely
+     visible text, while the surrounding white cards/modals stayed correctly
+     light. Declaring light-only opts out of that entirely, at the root,
+     instead of patching every individual input's classes. */
+  color-scheme: light;
+  color: #213547;
+  background-color: #f8fafc;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Modern minimal scrollbars everywhere (sidebar, modals, tables) instead of
+   the bulky default OS scrollbar - visible track + thumb, not just a faint
+   sliver, so it doesn't read as "missing". */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #94a3b8;
+  border-radius: 9999px;
+  border: 2px solid #f1f5f9;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b;
+}
+
+/* Hide number input spinner arrows app-wide -- paired with the wheel
+   listener in main.jsx that blurs a focused number input, since an
+   accidental scroll over a spinner-less input can still change its
+   value if the input stays focused. */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Wrapped in @layer components so plain utility classes used alongside these
+   (e.g. <input className="input-field pl-10">) can actually override them -
+   without this layer, these rules land after the utilities layer in the
+   compiled CSS and silently win the cascade regardless of class order in
+   the JSX. This was causing search icons to overlap placeholder text
+   everywhere pl-9/pl-10 was meant to make room for one. */
+@layer components {
+  /* SuperAdmin: sidebar should be text-only (no button look). */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-0 py-1 text-gray-600 transition-colors duration-150 text-sm font-medium hover:text-gray-900;
+  }
+
+  .sidebar-link.active {
+    @apply text-blue-700;
+  }
+
+
+  .stat-card {
+    @apply bg-white rounded-xl p-6 shadow-sm border border-gray-100;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-100;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow;
+  }
+
+  .table-header {
+    @apply bg-gray-50 text-gray-700 font-semibold text-sm uppercase tracking-wider;
+  }
+
+  .table-row {
+    @apply border-b border-gray-100 hover:bg-gray-50 transition-colors;
+  }
+
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-available {
+    @apply bg-green-100 text-green-700;
+  }
+
+  .status-occupied {
+    @apply bg-red-100 text-red-700;
+  }
+
+  .status-maintenance {
+    @apply bg-gray-100 text-gray-600;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden;
+  }
+}

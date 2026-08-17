@@ -40,6 +40,20 @@ docker-compose.override.yml
 .local-pgdata/
 .local-redis/
 
+# ── Embedded module source (Mortuary/Drug Indenting/CliniGrowth/LifeGenX) ──
+modules/*/node_modules/
+modules/*/client/node_modules/
+modules/*/client/dist/
+modules/*/client/build/
+modules/clinigrowth-client/node_modules/
+modules/clinigrowth-client/dist/
+modules/lifegenx/frontend/.next/
+modules/lifegenx/backend/dist/
+modules/mortuary/uploads/*
+!modules/mortuary/uploads/.gitkeep
+*.db
+*.db-journal
+
 # ── OS ────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

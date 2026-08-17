@@ -1,0 +1,41 @@
+datasource db {
+  provider = "sqlite"
+  // LIFEGENX_DATABASE_URL, not DATABASE_URL -- this module shares a process
+  // with Drug Indenting, which already owns DATABASE_URL for its own
+  // (unrelated) Postgres connection.
+  url      = env("LIFEGENX_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  name          String
+  role          String         @default("DOCTOR")
+  department    String         @default("General Medicine")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  consultations Consultation[]
+}
+
+model Consultation {
+  id            String   @id @default(uuid())
+  patientName   String   @default("Anonymous Patient")
+  patientAge    Int?
+  patientGender String?  @default("Unspecified")
+  audioPath     String?
+  audioFileName String?
+  duration      String?
+  transcript    String
+  symptoms      String   // JSON string
+  observations  String   // JSON string
+  diagnoses     String   // JSON string
+  doctorId      String
+  doctor        User     @relation(fields: [doctorId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

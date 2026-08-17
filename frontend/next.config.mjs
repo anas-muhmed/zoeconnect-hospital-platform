@@ -38,18 +38,21 @@ const nextConfig = {
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     return [
       // Mortuary keeps its own original backend + auth (employee/admin/
-      // superadmin login, cookie/JWT sessions) exactly as it runs in
-      // zoe-platform standalone -- proxied here ahead of the generic
-      // /api/:path* rule below (more specific rule must come first, an
-      // array of Next.js rewrites is matched in order) so it doesn't fall
-      // through to ZoeConnect's own backend instead.
+      // superadmin login, cookie/JWT sessions) exactly as it runs
+      // standalone -- its source lives in this repo at
+      // /modules/mortuary/ (run via `npm start` there, its own process on
+      // its own port) and is proxied here ahead of the generic /api/:path*
+      // rule below (more specific rule must come first, an array of
+      // Next.js rewrites is matched in order) so it doesn't fall through
+      // to ZoeConnect's own backend instead.
       {
         source: '/api/mortuary/:path*',
         destination: `${process.env.MORTUARY_URL || 'http://localhost:3011'}/api/mortuary/:path*`,
       },
       // Drug Indenting keeps its own original backend + auth (userId/
-      // password login against its own users table) too -- same reasoning
-      // as Mortuary above.
+      // password login against its own users table) too -- source lives at
+      // /modules/drug-indenting/ in this repo, same reasoning as Mortuary
+      // above.
       {
         source: '/api/drug-indenting/:path*',
         destination: `${process.env.DRUG_INDENTING_URL || 'http://localhost:3012'}/api/drug-indenting/:path*`,
@@ -75,16 +78,20 @@ const nextConfig = {
         destination: `${backendUrl}/uploads/feedback-media/:path*`,
       },
 
-      // ── zoe-platform modules: SPA-fallback for client-side routing ──────
+      // ── Integrated modules: SPA-fallback for client-side routing ────────
       // Each module's own original build lives at public/<module>/ (own
-      // index.html, own assets/ folder). A request for a real file in
-      // there (e.g. /mortuary/assets/index-abc.js) is already served
-      // directly by Next's filesystem/public check, which runs BEFORE this
-      // array of rewrites -- so these rules only ever fire for a path that
-      // ISN'T a real file, i.e. one of the SPA's own client-side routes
-      // (e.g. /mortuary/bodies/5), and hand it the app shell so
-      // react-router-dom/basename can take over, exactly like any other
-      // single-page app's server-side fallback.
+      // index.html, own assets/ folder) -- built from its source at
+      // /modules/<module>/client/ (CliniGrowth's is /modules/clinigrowth-client/).
+      // Run `npm install && npm run build` there and copy dist/ (or
+      // build/ for Drug Indenting's CRA app) into the matching
+      // public/<module>/ folder if you change that module's UI.
+      // A request for a real file in there (e.g. /mortuary/assets/
+      // index-abc.js) is already served directly by Next's filesystem/
+      // public check, which runs BEFORE this array of rewrites -- so these
+      // rules only ever fire for a path that ISN'T a real file, i.e. one
+      // of the SPA's own client-side routes (e.g. /mortuary/bodies/5), and
+      // hand it the app shell so react-router-dom/basename can take over,
+      // exactly like any other single-page app's server-side fallback.
       { source: '/mortuary', destination: '/mortuary/index.html' },
       { source: '/mortuary/:path*', destination: '/mortuary/index.html' },
       { source: '/drug-indenting', destination: '/drug-indenting/index.html' },

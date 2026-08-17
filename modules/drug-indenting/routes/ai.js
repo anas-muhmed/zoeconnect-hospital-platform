@@ -1,0 +1,164 @@
+// AI drug-profile / alternative-drug routes — moved out of server.js
+// unchanged, mounted at /api. GROQ_API_KEY missing only disables these
+// two routes (see askAI's guard), not the whole server — that was a
+// real crash-the-whole-app bug fixed earlier this project.
+//
+// CONVERTED to Postgres (migration/oracle-to-postgres). See
+// routes/auth.js's header for the bind-style conventions used app-wide.
+// This file barely touches the database at all -- one real UPDATE, and
+// one dead code path (see alternative-drug below).
+
+import express from 'express';
+import fetch from 'node-fetch';
+import { getPgPool } from '../db/pgPool.js';
+import { requireAuth } from '../middleware/requireAuth.js';
+import { ALL_PROFILE_SYSTEM_PROMPT, ALL_PROFILE_SYSTEM_PROMPT2 } from '../prompts/drugProfilePrompts.js';
+
+const GROQ_MODEL = "openai/gpt-oss-120b";
+
+// Read at call time, not at import time: ES module imports are fully
+// evaluated before dotenv.config() (server.js) runs, so capturing this
+// into a module-level const here would always see it as undefined,
+// regardless of what's actually in .env.
+function getGroqApiKey() {
+  return process.env.GROQ_API_KEY;
+}
+
+const router = express.Router();
+
+// ── AI CALL FUNCTION ─────────────────────────────────────
+
+async function askAI(userPrompt, systemPrompt) {
+  const apiKey = getGroqApiKey();
+  if (!apiKey) {
+    throw new Error("AI service unavailable: GROQ_API_KEY not configured");
+  }
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0,
+        top_p: 0.1,
+        max_tokens: 3200
+      })
+    });
+
+    const data = await response.json();
+
+    return data.choices[0].message.content.trim();
+
+  } catch (error) {
+    console.error("❌ AI Error:", error);
+    throw new Error("AI service failed");
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// 🔹 ENDPOINT: DRUG PROFILE
+// ─────────────────────────────────────────────────────────
+
+router.post("/drug-profile", requireAuth, async (req, res) => {
+  try {
+
+    const { drug_name } = req.body;
+
+    if (!drug_name) {
+      return res.status(400).json({ error: "drug_name required" });
+    }
+
+    const result = await askAI(
+      `Generate complete drug profile for: ${drug_name}`,
+      ALL_PROFILE_SYSTEM_PROMPT
+    );
+
+    if (!result) {
+      return res.status(500).json({ error: "AI failed to generate content" });
+    }
+
+    let rowsAffected = 0;
+    let formattedResult = result.replace(/\n/g, '<br>');
+
+    try {
+      const pool = getPgPool();
+      // Oracle's UPDATE result exposes .rowsAffected; node-postgres's
+      // equivalent is .rowCount. Kept in its own try/catch, same as
+      // before -- a failed "attach AI content to this request" update
+      // must not fail the whole response, since the AI content itself
+      // still generated successfully.
+      const dbResult = await pool.query(
+        `UPDATE drug_requests SET ai_content = $1 WHERE brand_name = $2`,
+        [formattedResult, drug_name]
+      );
+
+      rowsAffected = dbResult?.rowCount;
+
+      console.log("Rows affected:", rowsAffected);
+
+    } catch (dbErr) {
+      console.error("DB ERROR:", dbErr);
+    }
+
+    return res.json({
+      success: true,
+      drug_name,
+      data: result
+    });
+
+  } catch (err) {
+    console.error("Error in /api/drug-profile:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error"
+    });
+  }
+});
+// api  for  alternative  durg
+router.post("/alternative-drug", requireAuth, async (req, res) => {
+  try {
+
+    const { drug_name } = req.body;
+
+    if (!drug_name) {
+      return res.status(400).json({ error: "drug_name required" });
+    }
+
+    const result = await askAI(
+      `Generate complete alternative drug profile for: ${drug_name}`,
+      ALL_PROFILE_SYSTEM_PROMPT2
+    );
+
+    if (!result) {
+      return res.status(500).json({ error: "AI failed to generate content" });
+    }
+
+    // No DB write here -- the original Oracle version acquired and closed
+    // a connection but never actually ran a query (the UPDATE was
+    // entirely commented out). Postgres's pool.query() model doesn't need
+    // a connection acquired up front for a query that never happens, so
+    // that dead scaffolding isn't carried forward.
+
+    return res.json({
+      success: true,
+      drug_name,
+      data: result
+    });
+
+  } catch (err) {
+    console.error("Error in /api/alternative-drug:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error"
+    });
+  }
+});
+
+export default router;

@@ -1,0 +1,24 @@
+{
+  "name": "zoeconnect-mortuary-module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mortuary module's own Express backend, embedded in ZoeConnect — original source, unmodified business logic.",
+  "type": "module",
+  "main": "standalone-server.js",
+  "scripts": {
+    "start": "node --env-file=.env standalone-server.js",
+    "db:setup": "node --env-file=.env db/setupSchema.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.22.0",
+    "pino": "^10.3.1",
+    "sharp": "^0.35.3",
+    "uuid": "^10.0.0"
+  }
+}
