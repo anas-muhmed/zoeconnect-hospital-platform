@@ -40,6 +40,10 @@ import LightModeIcon            from '@mui/icons-material/LightMode';
 import RateReviewIcon           from '@mui/icons-material/RateReview';
 import ExpandMoreIcon           from '@mui/icons-material/ExpandMore';
 import ReportProblemIcon        from '@mui/icons-material/ReportProblem';
+import ShowChartIcon            from '@mui/icons-material/ShowChart';
+import LocalHospitalIcon        from '@mui/icons-material/LocalHospital';
+import PsychologyIcon           from '@mui/icons-material/Psychology';
+import MedicationIcon           from '@mui/icons-material/Medication';
 
 import { useAuthStore } from '@/lib/store/auth.store';
 import { licenseApi } from '@/lib/api/license.api';
@@ -70,6 +74,8 @@ interface ModuleConfig {
   tag?: string;
   /** If set, the whole card is hidden unless this module code is in the tenant's licensed modules -- see `licenseApi.getStatus()`. Platform-core sections (Reports, Notifications, Users, RBAC, Settings) intentionally leave this unset since they're always available under Platform Core, not separately licensed. */
   requiresModule?: string;
+  /** Same meaning as `NavLeaf.external` in `app/(platform)/layout.tsx` -- this module is its own statically-served original zoe-platform build, not a Next.js page, so it needs a real browser navigation rather than `router.push()`. */
+  external?: boolean;
   actions?: {
     label: string;
     href: string;
@@ -152,6 +158,67 @@ const MODULES: ModuleConfig[] = [
   },
 
 
+  // ── zoe-platform modules ──────────────────────────────────────────────
+  // Each card opens the module's own original, unmodified zoe-platform
+  // build (own UI, own internal navigation) mounted statically under
+  // `public/<module>/` -- `external: true`, no `actions` sub-menu (the
+  // module provides its own once it loads), matching the sidebar entries
+  // in `app/(platform)/layout.tsx`.
+  {
+    key: 'mortuary',
+    label: 'Mortuary Management',
+    description: 'Body registration, cabin allocation, billing, housekeeping, and release workflow.',
+    href: '/mortuary/',
+    permission: 'MORTUARY:BODIES:READ',
+    requiresModule: 'MORTUARY',
+    external: true,
+    gradient: 'linear-gradient(135deg, #334155 0%, #1E293B 100%)',
+    iconBg: 'linear-gradient(135deg, #334155, #475569)',
+    icon: <LocalHospitalIcon sx={{ fontSize: 24, color: 'white' }} />,
+    tag: 'Mortuary',
+  },
+  {
+    key: 'lifegenx',
+    label: 'LifeGenX',
+    description: 'AI-assisted consultation recording, transcription, symptom extraction, and differential diagnosis support.',
+    href: '/lifegenx/',
+    permission: 'LIFEGENX:CONSULTATIONS:VIEW',
+    requiresModule: 'LIFEGENX',
+    external: true,
+    gradient: 'linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%)',
+    iconBg: 'linear-gradient(135deg, #7C3AED, #8B5CF6)',
+    icon: <PsychologyIcon sx={{ fontSize: 24, color: 'white' }} />,
+    tag: 'LifeGenX',
+  },
+  {
+    key: 'drug-indenting',
+    label: 'Drug Indenting',
+    description: 'Multi-stage drug request approval — Doctor to HOD, Pharmacist, Pharmacy Head, DTC, and CEO review, with emergency fast-track.',
+    href: '/drug-indenting/',
+    permission: 'DRUG_INDENTING:REQUESTS:VIEW',
+    requiresModule: 'DRUG_INDENTING',
+    external: true,
+    gradient: 'linear-gradient(135deg, #B45309 0%, #78350F 100%)',
+    iconBg: 'linear-gradient(135deg, #B45309, #D97706)',
+    icon: <MedicationIcon sx={{ fontSize: 24, color: 'white' }} />,
+    tag: 'Drug Indenting',
+  },
+  {
+    key: 'clinigrowth',
+    label: 'CliniGrowth',
+    description: 'Pediatric growth-chart lookup — height, weight, and head circumference by MRN, sourced live from HIS.',
+    href: '/clinigrowth/',
+    permission: 'PLATFORM:HIS:READ',
+    // Reuses the existing PLATFORM license (already active for every
+    // tenant) rather than a CliniGrowth-specific module code — see
+    // clinigrowth.controller.ts's own doc comment.
+    requiresModule: 'PLATFORM',
+    external: true,
+    gradient: 'linear-gradient(135deg, #0D9488 0%, #0F766E 100%)',
+    iconBg: 'linear-gradient(135deg, #0D9488, #14B8A6)',
+    icon: <ShowChartIcon sx={{ fontSize: 24, color: 'white' }} />,
+    tag: 'CliniGrowth',
+  },
   {
     key: 'cms',
     label: 'Content Management System',
@@ -477,7 +544,7 @@ function ModuleTile({
 
         {/* Open module link */}
         <Box
-          onClick={() => router.push(mod.href)}
+          onClick={() => (mod.external ? window.location.assign(mod.href) : router.push(mod.href))}
           sx={{
             mt: 0.5, pt: 0.75,
             borderTop: '1px solid #F1F5F9',

@@ -37,6 +37,23 @@ const nextConfig = {
     // Proxy /api/* → backend so browser never makes cross-origin requests
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     return [
+      // Mortuary keeps its own original backend + auth (employee/admin/
+      // superadmin login, cookie/JWT sessions) exactly as it runs in
+      // zoe-platform standalone -- proxied here ahead of the generic
+      // /api/:path* rule below (more specific rule must come first, an
+      // array of Next.js rewrites is matched in order) so it doesn't fall
+      // through to ZoeConnect's own backend instead.
+      {
+        source: '/api/mortuary/:path*',
+        destination: `${process.env.MORTUARY_URL || 'http://localhost:3011'}/api/mortuary/:path*`,
+      },
+      // Drug Indenting keeps its own original backend + auth (userId/
+      // password login against its own users table) too -- same reasoning
+      // as Mortuary above.
+      {
+        source: '/api/drug-indenting/:path*',
+        destination: `${process.env.DRUG_INDENTING_URL || 'http://localhost:3012'}/api/drug-indenting/:path*`,
+      },
       {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`,
@@ -56,6 +73,34 @@ const nextConfig = {
       {
         source: '/uploads/feedback-media/:path*',
         destination: `${backendUrl}/uploads/feedback-media/:path*`,
+      },
+
+      // ── zoe-platform modules: SPA-fallback for client-side routing ──────
+      // Each module's own original build lives at public/<module>/ (own
+      // index.html, own assets/ folder). A request for a real file in
+      // there (e.g. /mortuary/assets/index-abc.js) is already served
+      // directly by Next's filesystem/public check, which runs BEFORE this
+      // array of rewrites -- so these rules only ever fire for a path that
+      // ISN'T a real file, i.e. one of the SPA's own client-side routes
+      // (e.g. /mortuary/bodies/5), and hand it the app shell so
+      // react-router-dom/basename can take over, exactly like any other
+      // single-page app's server-side fallback.
+      { source: '/mortuary', destination: '/mortuary/index.html' },
+      { source: '/mortuary/:path*', destination: '/mortuary/index.html' },
+      { source: '/drug-indenting', destination: '/drug-indenting/index.html' },
+      { source: '/drug-indenting/:path*', destination: '/drug-indenting/index.html' },
+      { source: '/clinigrowth', destination: '/clinigrowth/index.html' },
+      { source: '/clinigrowth/:path*', destination: '/clinigrowth/index.html' },
+
+      // LifeGenX is itself a separate Next.js app (its own SSR, not a
+      // static SPA -- see zoe-platform/src/modules/lifegenx/frontend), run
+      // as its own `next start` process (default port 3010, override via
+      // LIFEGENX_URL) and reverse-proxied here exactly like the /api/*
+      // backend proxy above. Its own next.config.js already sets
+      // basePath:'/lifegenx', so the prefix passes through unchanged.
+      {
+        source: '/lifegenx/:path*',
+        destination: `${process.env.LIFEGENX_URL || 'http://localhost:3010'}/lifegenx/:path*`,
       },
     ];
   },

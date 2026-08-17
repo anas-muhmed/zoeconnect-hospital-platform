@@ -1,0 +1,2 @@
+"use strict";(globalThis.webpackChunkdrug_indenting_client=globalThis.webpackChunkdrug_indenting_client||[]).push([[803],{803(n,e,i){i.r(e),i.d(e,{default:()=>l});i(43);var r=i(953),s=i(584),t=i(579);function l(){const{currentUser:n,allUsers:e,onNotificationsRead:i}=(0,r.KC)();return n?(0,t.jsx)("div",{children:(0,t.jsx)(s.A,{currentUser:n,allUsers:e,onNotificationsRead:i})}):null}}}]);
+//# sourceMappingURL=803.a2657a04.chunk.js.map

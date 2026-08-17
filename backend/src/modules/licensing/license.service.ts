@@ -20,7 +20,7 @@ import type { TenantScopedRepository } from '../platform/tenant/repositories/ten
 import { TenantContextStorage } from '../platform/tenant/context/tenant-context-storage';
 import { TenantContextService } from '../platform/tenant/tenant-context.service';
 
-export type LicenseModule = 'PLATFORM' | 'LOYALTY' | 'FORMS' | 'QUEUE' | 'FEEDBACK' | 'EIC' | 'ATTENDANCE' | 'CMS' | 'INCIDENT' | 'CHILDRENS_VILLAGE';
+export type LicenseModule = 'PLATFORM' | 'LOYALTY' | 'FORMS' | 'QUEUE' | 'FEEDBACK' | 'EIC' | 'ATTENDANCE' | 'CMS' | 'INCIDENT' | 'CHILDRENS_VILLAGE' | 'MORTUARY' | 'DRUG_INDENTING' | 'LIFEGENX';
 
 /**
  * Every module code that actually gates something in ZoeConnect -- the union of
@@ -29,8 +29,19 @@ export type LicenseModule = 'PLATFORM' | 'LOYALTY' | 'FORMS' | 'QUEUE' | 'FEEDBA
  * list used to widen access during an active trial (see `refreshCache()`).
  * `TOKEN` is deliberately excluded -- seeded as `license_required: false`
  * in `module_registry`, i.e. always-on regardless of license.
+ *
+ * Frontend integration Phase 1: MORTUARY, DRUG_INDENTING, LIFEGENX added
+ * (registered in `module_registry` via their own `Register<X>Module`
+ * migrations) so their `requiresModule` sidebar/dashboard/ModuleGate
+ * entries resolve during an active trial, same as every other module
+ * here. None of these three modules' backend controllers apply
+ * `LicenseGuard`/`@RequireModule` themselves yet (only `JwtAuthGuard`+
+ * `PermissionsGuard`) -- that's a deliberate, separate decision, not
+ * changed by this addition. CliniGrowth is NOT listed here: it
+ * intentionally reuses `PLATFORM` (already licensed for every tenant),
+ * not a module code of its own.
  */
-export const ALL_MODULE_CODES: LicenseModule[] = ['PLATFORM', 'LOYALTY', 'FORMS', 'QUEUE', 'FEEDBACK', 'EIC', 'ATTENDANCE', 'CMS', 'INCIDENT', 'CHILDRENS_VILLAGE'];
+export const ALL_MODULE_CODES: LicenseModule[] = ['PLATFORM', 'LOYALTY', 'FORMS', 'QUEUE', 'FEEDBACK', 'EIC', 'ATTENDANCE', 'CMS', 'INCIDENT', 'CHILDRENS_VILLAGE', 'MORTUARY', 'DRUG_INDENTING', 'LIFEGENX'];
 
 export interface LicensePayload {
   licenseKey: string;

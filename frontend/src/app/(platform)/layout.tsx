@@ -52,6 +52,11 @@ import AccountBalanceIcon      from '@mui/icons-material/AccountBalance';
 import MenuOpenIcon            from '@mui/icons-material/MenuOpen';
 import MenuIcon                from '@mui/icons-material/Menu';
 import ArticleIcon             from '@mui/icons-material/Article';
+import PsychologyIcon          from '@mui/icons-material/Psychology';
+import ChatIcon                from '@mui/icons-material/Chat';
+import MedicationIcon          from '@mui/icons-material/Medication';
+import BlockIcon               from '@mui/icons-material/Block';
+import PieChartIcon            from '@mui/icons-material/PieChart';
 import UploadFileIcon          from '@mui/icons-material/UploadFile';
 import CollectionsBookmarkIcon from '@mui/icons-material/CollectionsBookmark';
 import PermMediaIcon           from '@mui/icons-material/PermMedia';
@@ -69,6 +74,11 @@ import RestoreIcon             from '@mui/icons-material/SettingsBackupRestore';
 import ScheduleIcon            from '@mui/icons-material/Schedule';
 import HealthAndSafetyIcon     from '@mui/icons-material/HealthAndSafety';
 import WorkspacePremiumIcon    from '@mui/icons-material/WorkspacePremium';
+import ShowChartIcon           from '@mui/icons-material/ShowChart';
+import KingBedIcon             from '@mui/icons-material/KingBed';
+import ReceiptLongIcon         from '@mui/icons-material/ReceiptLong';
+import CleaningServicesIcon    from '@mui/icons-material/CleaningServices';
+import LocalHospitalIcon       from '@mui/icons-material/LocalHospital';
 
 import Image from 'next/image';
 import { useAuthStore } from '@/lib/store/auth.store';
@@ -99,6 +109,16 @@ interface NavLeaf {
   exact?: boolean;
   /** Bug fix (sidebar-license-gating, 2026-07-31): mirrors dashboard's `ModuleConfig.requiresModule` -- hides this item unless the module code is in the tenant's licensed modules. Unset for Platform-core items (Dashboard, Users, RBAC, Settings), exactly like the dashboard leaves those ungated. */
   requiresModule?: string;
+  /**
+   * These modules are mounted as their own independent, statically-served
+   * apps (original zoe-platform SPA/Next.js builds copied verbatim into
+   * `public/<module>/`, own React tree, own CSS) -- not Next.js App Router
+   * pages. `router.push()`'s client-side soft navigation only knows about
+   * the App Router's own route manifest, so it 404s on these paths; a real
+   * browser navigation (`window.location.assign`) is required to actually
+   * hit the static file server / SPA fallback rewrite for them.
+   */
+  external?: boolean;
 }
 
 interface NavGroup {
@@ -127,6 +147,33 @@ const NAV: NavEntry[] = [
   { label: 'Roles & Permissions', icon: <SecurityIcon />,  href: '/rbac',     permission: 'PLATFORM:ROLES:READ' },
 
   { kind: 'section', label: 'MODULES' },
+  // ── zoe-platform modules ──────────────────────────────────────────────
+  // Each of these four is mounted as its own original, unmodified
+  // zoe-platform build (Vite/CRA SPA or, for LifeGenX, its own Next.js
+  // app) served statically under `public/<module>/` -- own React tree,
+  // own CSS, own client-side routing (BrowserRouter/basePath already set
+  // to that prefix in the original source). A single flat, `external`
+  // sidebar leaf per module is all that's needed: the module's own UI
+  // provides its own internal navigation once loaded, exactly as it did
+  // standalone in zoe-platform. `exact: true` so the leaf only highlights
+  // on the module's own root, not while the browser is mid-navigation
+  // away from ZoeConnect.
+  {
+    label: 'CliniGrowth', icon: <ShowChartIcon />, href: '/clinigrowth/',
+    permission: 'PLATFORM:HIS:READ', requiresModule: 'PLATFORM', exact: true, external: true,
+  },
+  {
+    label: 'Mortuary', icon: <LocalHospitalIcon />, href: '/mortuary/',
+    permission: 'MORTUARY:BODIES:READ', requiresModule: 'MORTUARY', exact: true, external: true,
+  },
+  {
+    label: 'LifeGenX', icon: <PsychologyIcon />, href: '/lifegenx/',
+    permission: 'LIFEGENX:CONSULTATIONS:VIEW', requiresModule: 'LIFEGENX', exact: true, external: true,
+  },
+  {
+    label: 'Drug Indenting', icon: <MedicationIcon />, href: '/drug-indenting/',
+    permission: 'DRUG_INDENTING:REQUESTS:VIEW', requiresModule: 'DRUG_INDENTING', exact: true, external: true,
+  },
   {
     kind: 'group', label: 'Loyalty', icon: <LoyaltyIcon />,
     basePath: '/loyalty', permission: 'LOYALTY:ACCOUNTS:READ', requiresModule: 'LOYALTY',
@@ -391,8 +438,12 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
   // Wraps router.push so nav clicks also dismiss the mobile overlay drawer --
   // used by renderLeaf/renderGroup below instead of calling router.push directly.
-  const navigate = (href: string) => {
-    router.push(href);
+  const navigate = (href: string, external?: boolean) => {
+    if (external) {
+      window.location.assign(href);
+    } else {
+      router.push(href);
+    }
     if (isMobile) setMobileOpen(false);
   };
 
@@ -484,7 +535,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         <Tooltip title={effectiveCollapsed ? item.label : ''} placement="right" arrow>
           <ListItemButton
             selected={active}
-            onClick={() => navigate(item.href)}
+            onClick={() => navigate(item.href, item.external)}
             sx={{
               ...btnSx(active),
               pl: !effectiveCollapsed && indent

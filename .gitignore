@@ -36,6 +36,10 @@ ecosystem.config.js.bak
 # ── Docker ────────────────────────────────────────────────────────
 docker-compose.override.yml
 
+# ── Local disposable dev data (bind-mounted DB volumes) ────────────
+.local-pgdata/
+.local-redis/
+
 # ── OS ────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

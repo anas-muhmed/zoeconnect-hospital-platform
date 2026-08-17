@@ -169,6 +169,10 @@ import { CreateDrugIndentingSchema1794000000000 } from './migrations/17940000000
 import { SeedDrugIndentingRbac1795000000000 } from './migrations/1795000000000-SeedDrugIndentingRbac';
 import { CreateLifeGenXSchema1796000000000 } from './migrations/1796000000000-CreateLifeGenXSchema';
 import { SeedLifeGenXRbac1797000000000 } from './migrations/1797000000000-SeedLifeGenXRbac';
+import { RegisterMortuaryModule1798000000000 } from './migrations/1798000000000-RegisterMortuaryModule';
+import { RegisterDrugIndentingModule1798100000000 } from './migrations/1798100000000-RegisterDrugIndentingModule';
+import { RegisterLifeGenXModule1798200000000 } from './migrations/1798200000000-RegisterLifeGenXModule';
+import { ActivateMortuaryDrugIndentingLifeGenXCatalog1798300000000 } from './migrations/1798300000000-ActivateMortuaryDrugIndentingLifeGenXCatalog';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -349,6 +353,10 @@ export const AppDataSource = new DataSource({
     SeedDrugIndentingRbac1795000000000,
     CreateLifeGenXSchema1796000000000,
     SeedLifeGenXRbac1797000000000,
+    RegisterMortuaryModule1798000000000,
+    RegisterDrugIndentingModule1798100000000,
+    RegisterLifeGenXModule1798200000000,
+    ActivateMortuaryDrugIndentingLifeGenXCatalog1798300000000,
   ],
   migrationsTableName: 'typeorm_migrations',
 });
