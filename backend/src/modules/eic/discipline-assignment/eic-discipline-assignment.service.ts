@@ -2,7 +2,7 @@ import {
   Inject, Injectable, Logger, NotFoundException, ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import {
   EicEnrollmentDisciplineAssignment,
   AssignmentRole,
@@ -139,6 +139,34 @@ export class EicDisciplineAssignmentService {
         isActive: true,
       },
     });
+  }
+
+  /**
+   * Batched counterpart to `findActivePrimary()` — one active PRIMARY
+   * assignment per discipline, for every discipline in `disciplines`, in a
+   * single query instead of one round trip per discipline. Returned as a
+   * Map keyed by discipline; disciplines with no active PRIMARY assignment
+   * are simply absent from the map (same "no result" case `findActivePrimary`
+   * represents as `null`).
+   */
+  async findActivePrimaryBatch(
+    enrollmentId: string,
+    disciplines:  EicDiscipline[],
+  ): Promise<Map<EicDiscipline, EicEnrollmentDisciplineAssignment>> {
+    const result = new Map<EicDiscipline, EicEnrollmentDisciplineAssignment>();
+    if (disciplines.length === 0) return result;
+
+    const uniqueDisciplines = [...new Set(disciplines)];
+    const assignments = await this.scopedAssignmentRepo.find({
+      where: {
+        enrollmentId,
+        discipline: In(uniqueDisciplines),
+        role:       AssignmentRole.PRIMARY,
+        isActive:   true,
+      },
+    });
+    for (const a of assignments) result.set(a.discipline, a);
+    return result;
   }
 
   /**

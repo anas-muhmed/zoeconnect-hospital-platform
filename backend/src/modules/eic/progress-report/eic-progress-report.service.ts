@@ -2,7 +2,7 @@ import {
   Inject, Injectable, Logger, NotFoundException, BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { EicProgressReport }            from '../entities/eic-progress-report.entity';
@@ -183,31 +183,118 @@ export class EicProgressReportService {
   }
 
   // ── Live Draft Hydration ────────────────────────────────────────────────────
+  //
+  // Query-plan note: hydration used to run entirely per-section (one
+  // assessment lookup, one therapist lookup, one sessions query, one goals
+  // query -- each scoped by `discipline` -- repeated for every section on
+  // the report). Every one of those queries is scoped by the SAME
+  // enrollmentId/period and only varies by discipline, and a report has a
+  // small, known set of disciplines up front, so they're batched here into
+  // one query per data source (sessions, goals, assessments, assignments,
+  // users) covering all of a report's disciplines at once, then sliced back
+  // out per section in memory. Output is identical to the old per-section
+  // version -- this only changes how many round trips it takes to build it.
   private async hydrateLiveDrafts(report: EicProgressReport): Promise<EicProgressReport> {
     if (report.status === EicReportStatus.SIGNED || report.status === EicReportStatus.PUBLISHED) {
       return report;
     }
-    
-    if (report.sections && report.sections.length > 0) {
-      await Promise.all(report.sections.map(async (section) => {
-        if (section.status !== EicSectionStatus.SUBMITTED) {
-          await this.hydrateLiveSection(section, report.enrollmentId, report.periodFrom, report.periodTo);
-        }
-      }));
+
+    const sections = (report.sections ?? []).filter(s => s.status !== EicSectionStatus.SUBMITTED);
+    if (sections.length > 0) {
+      await this.hydrateLiveSections(sections, report.enrollmentId, report.periodFrom, report.periodTo);
     }
     return report;
   }
 
   private async hydrateLiveSection(section: EicDisciplineProgressSection, enrollmentId: string, periodFrom: string, periodTo: string): Promise<void> {
-    section.sectionData = section.sectionData || {};
+    await this.hydrateLiveSections([section], enrollmentId, periodFrom, periodTo);
+  }
 
-    // 0a. Hydrate Assessment Snapshot if completely missing
-    if (!(section.sectionData as any).assessmentSnapshot) {
-      const latest = await this.assessmentRepo.findOne({
-        where: { enrollmentId, discipline: section.discipline },
-        order: { createdAt: 'DESC' }
-      });
-      if (latest) {
+  private async hydrateLiveSections(
+    sections:     EicDisciplineProgressSection[],
+    enrollmentId: string,
+    periodFrom:   string,
+    periodTo:     string,
+  ): Promise<void> {
+    const disciplines = [...new Set(sections.map(s => s.discipline))];
+
+    // 1. Latest assessment per discipline (same "no date filter, just most
+    //    recent" semantics as the old per-section query) -- one query, then
+    //    keep only the first (most recent) row per discipline in memory.
+    const assessments = await this.assessmentRepo
+      .createQueryBuilder('a')
+      .where('a.enrollmentId = :enrollmentId', { enrollmentId })
+      .andWhere('a.discipline IN (:...disciplines)', { disciplines })
+      .orderBy('a.createdAt', 'DESC')
+      .getMany();
+    const latestAssessmentByDiscipline = new Map<string, EicAssessment>();
+    for (const a of assessments) {
+      if (!latestAssessmentByDiscipline.has(a.discipline)) latestAssessmentByDiscipline.set(a.discipline, a);
+    }
+
+    // 2. Sessions in-period across every discipline on the report — one query.
+    const allSessions = disciplines.length > 0
+      ? await this.sessionRepo
+          .createQueryBuilder('s')
+          .where('s.enrollmentId = :enrollmentId', { enrollmentId })
+          .andWhere('s.discipline IN (:...disciplines)', { disciplines })
+          .andWhere('s.sessionDate >= :periodFrom', { periodFrom })
+          .andWhere('s.sessionDate <= :periodTo', { periodTo })
+          .getMany()
+      : [];
+    const sessionsByDiscipline = new Map<string, EicTherapySession[]>();
+    for (const s of allSessions) {
+      const arr = sessionsByDiscipline.get(s.discipline) ?? [];
+      arr.push(s);
+      sessionsByDiscipline.set(s.discipline, arr);
+    }
+
+    // 3. Goals up to periodTo across every discipline — one query.
+    const allGoals = disciplines.length > 0
+      ? await this.goalRepo
+          .createQueryBuilder('g')
+          .where('g.enrollmentId = :enrollmentId', { enrollmentId })
+          .andWhere('g.discipline IN (:...disciplines)', { disciplines })
+          .andWhere('g.createdAt <= :periodTo', { periodTo })
+          .getMany()
+      : [];
+    const goalsByDiscipline = new Map<string, EicGoal[]>();
+    for (const g of allGoals) {
+      const arr = goalsByDiscipline.get(g.discipline) ?? [];
+      arr.push(g);
+      goalsByDiscipline.set(g.discipline, arr);
+    }
+
+    // 4. Active PRIMARY assignment per discipline (fallback therapist source,
+    //    only reached when neither the assessment snapshot nor the latest
+    //    assessment itself carries a therapist name) — one query.
+    const needsAssignment = sections.filter(s => {
+      if (s.therapistName) return false;
+      if ((s.sectionData as any)?.assessmentSnapshot?.therapist) return false;
+      if (latestAssessmentByDiscipline.get(s.discipline)?.therapistName) return false;
+      return true;
+    });
+    const assignmentByDiscipline = await this.assignmentSvc.findActivePrimaryBatch(
+      enrollmentId,
+      needsAssignment.map(s => s.discipline),
+    );
+
+    // 5. Users for whichever assignments actually resolved to a therapist — one query.
+    const therapistIds = [...new Set(
+      [...assignmentByDiscipline.values()].map(a => a.therapistId).filter((id): id is string => !!id),
+    )];
+    const usersById = new Map<string, User>();
+    if (therapistIds.length > 0) {
+      const users = await this.userRepo.find({ where: { id: In(therapistIds) }, select: ['id', 'fullName', 'username'] });
+      for (const u of users) usersById.set(u.id, u);
+    }
+
+    for (const section of sections) {
+      section.sectionData = section.sectionData || {};
+      const latest = latestAssessmentByDiscipline.get(section.discipline);
+
+      // 0a. Hydrate Assessment Snapshot if completely missing
+      if (!(section.sectionData as any).assessmentSnapshot && latest) {
         (section.sectionData as any).assessmentSnapshot = {
           assessmentDate: latest.createdAt.toISOString().split('T')[0],
           clinicalObservations: latest.clinicalObservations,
@@ -215,91 +302,74 @@ export class EicProgressReportService {
           therapist: latest.therapistName,
         };
       }
-    }
 
-    // 0b. Fallback for therapist name if missing
-    if (!section.therapistName) {
-      let name = (section.sectionData as any)?.assessmentSnapshot?.therapist;
-      
-      if (!name) {
-        const latest = await this.assessmentRepo.findOne({
-          where: { enrollmentId, discipline: section.discipline },
-          order: { createdAt: 'DESC' }
-        });
-        name = latest?.therapistName;
-      }
+      // 0b. Fallback for therapist name if missing
+      if (!section.therapistName) {
+        let name = (section.sectionData as any)?.assessmentSnapshot?.therapist;
 
-      if (!name) {
-        const assignment = await this.assignmentSvc.findActivePrimary(enrollmentId, section.discipline);
-        if (assignment?.therapistId) {
-          const tUser = await this.userRepo.findOne({ where: { id: assignment.therapistId }, select: ['id', 'fullName', 'username'] });
-          name = tUser?.fullName ?? tUser?.username;
+        if (!name) {
+          name = latest?.therapistName;
         }
-      }
-      
-      section.therapistName = name ?? null;
-    }
 
-    // 1. Calculate live sessions
-    const sessions = await this.sessionRepo
-      .createQueryBuilder('s')
-      .where('s.enrollmentId = :enrollmentId', { enrollmentId })
-      .andWhere('s.discipline = :discipline', { discipline: section.discipline })
-      .andWhere('s.sessionDate >= :periodFrom', { periodFrom })
-      .andWhere('s.sessionDate <= :periodTo', { periodTo })
-      .getMany();
-      
-    const attended = sessions.filter(s => s.attendance === 'PRESENT').length;
-    const absent = sessions.filter(s => s.attendance === 'ABSENT').length;
-    const cancelled = sessions.filter(s => s.attendance === 'CANCELLED').length;
-    const planned = attended + absent; // Not counting cancelled towards planned in some clinics, but let's just sum it
-    const attendancePercent = planned > 0 ? Math.round((attended / planned) * 100) : 0;
-    
-    section.sessionsHeld = attended;
-    section.sectionData = section.sectionData || {};
-    section.sectionData.treatmentSummary = {
-      planned: planned + cancelled,
-      attended,
-      absent,
-      cancelled,
-      attendancePercent,
-    };
-    
-    // 2. Fetch live goals up to report periodTo
-    const liveGoals = await this.goalRepo
-      .createQueryBuilder('g')
-      .where('g.enrollmentId = :enrollmentId', { enrollmentId })
-      .andWhere('g.discipline = :discipline', { discipline: section.discipline })
-      .andWhere('g.createdAt <= :periodTo', { periodTo })
-      .getMany();
-      
-    const activeCount = liveGoals.filter(g => g.status === EicGoalStatus.ACTIVE).length;
-    const achievedCount = liveGoals.filter(g => g.status === EicGoalStatus.ACHIEVED).length;
-    const discontinuedCount = liveGoals.filter(g => g.status === EicGoalStatus.DISCONTINUED).length;
-    
-    section.goalsInProgress = activeCount;
-    section.goalsAchieved = achievedCount;
-    
-    const existingGoalNotes = new Map<string, { progressNote: string, outcomeNote: string }>(
-      ((section.sectionData.goals as any[]) || []).map((g: any) => [g.goalId, { progressNote: g.progressNote || '', outcomeNote: g.outcomeNote || '' }])
-    );
-    
-    section.sectionData.goalSummary = {
-      active: activeCount,
-      achieved: achievedCount,
-      discontinued: discontinuedCount,
-    };
-    
-    section.sectionData.goals = liveGoals.map(g => {
-      const saved = existingGoalNotes.get(g.id);
-      return {
-        goalId: g.id,
-        description: g.goalText,
-        status: g.status, // live status!
-        progressNote: saved?.progressNote || '',
-        outcomeNote: saved?.outcomeNote || '',
+        if (!name) {
+          const assignment = assignmentByDiscipline.get(section.discipline);
+          if (assignment?.therapistId) {
+            const tUser = usersById.get(assignment.therapistId);
+            name = tUser?.fullName ?? tUser?.username;
+          }
+        }
+
+        section.therapistName = name ?? null;
+      }
+
+      // 1. Calculate live sessions
+      const sessions = sessionsByDiscipline.get(section.discipline) ?? [];
+      const attended = sessions.filter(s => s.attendance === 'PRESENT').length;
+      const absent = sessions.filter(s => s.attendance === 'ABSENT').length;
+      const cancelled = sessions.filter(s => s.attendance === 'CANCELLED').length;
+      const planned = attended + absent; // Not counting cancelled towards planned in some clinics, but let's just sum it
+      const attendancePercent = planned > 0 ? Math.round((attended / planned) * 100) : 0;
+
+      section.sessionsHeld = attended;
+      section.sectionData = section.sectionData || {};
+      section.sectionData.treatmentSummary = {
+        planned: planned + cancelled,
+        attended,
+        absent,
+        cancelled,
+        attendancePercent,
       };
-    });
+
+      // 2. Live goals up to report periodTo
+      const liveGoals = goalsByDiscipline.get(section.discipline) ?? [];
+      const activeCount = liveGoals.filter(g => g.status === EicGoalStatus.ACTIVE).length;
+      const achievedCount = liveGoals.filter(g => g.status === EicGoalStatus.ACHIEVED).length;
+      const discontinuedCount = liveGoals.filter(g => g.status === EicGoalStatus.DISCONTINUED).length;
+
+      section.goalsInProgress = activeCount;
+      section.goalsAchieved = achievedCount;
+
+      const existingGoalNotes = new Map<string, { progressNote: string, outcomeNote: string }>(
+        ((section.sectionData.goals as any[]) || []).map((g: any) => [g.goalId, { progressNote: g.progressNote || '', outcomeNote: g.outcomeNote || '' }])
+      );
+
+      section.sectionData.goalSummary = {
+        active: activeCount,
+        achieved: achievedCount,
+        discontinued: discontinuedCount,
+      };
+
+      section.sectionData.goals = liveGoals.map(g => {
+        const saved = existingGoalNotes.get(g.id);
+        return {
+          goalId: g.id,
+          description: g.goalText,
+          status: g.status, // live status!
+          progressNote: saved?.progressNote || '',
+          outcomeNote: saved?.outcomeNote || '',
+        };
+      });
+    }
   }
 
   // ── Read ────────────────────────────────────────────────────────────────────
