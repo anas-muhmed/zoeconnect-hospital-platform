@@ -61,6 +61,11 @@ export default function Dashboard_Base() {
       { path: '/dashboard/housekeeping', icon: ClipboardCheck, label: 'Housekeeping' },
     ];
   }
+  else if (role === "House Keeping") {
+    navItems = [
+      { path: '/dashboard/housekeeping', icon: ClipboardCheck, label: 'Housekeeping' },
+    ];
+  }
   else if (role === "SuperAdmin") {
     // SuperAdmin sidebar minimal.
     // Note: these navigate to the same page; modals should be triggered from inside the page.
