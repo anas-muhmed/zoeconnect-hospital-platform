@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import axios from 'axios';
 import { Search, UserPlus, Save, X, Eye, Edit2, FileText, Link2, Check, Trash2, Upload, AlertTriangle, ShieldAlert, Printer } from 'lucide-react';
-import MLCRegistrationPrint from './MLCRegistrationPrint';
+// Lazy-loaded: pulls in html2pdf.js, only needed once a user opens print.
+const MLCRegistrationPrint = lazy(() => import('./MLCRegistrationPrint'));
 
 import { API_BASE } from '../config.js';
 
@@ -1339,12 +1340,14 @@ function BodyRegistration() {
       )}
 
       {/* MLC Registration Print Modal */}
-      {mlcPrintBodyId && (
-        <MLCRegistrationPrint
-          bodyId={mlcPrintBodyId}
-          onClose={() => setMlcPrintBodyId(null)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {mlcPrintBodyId && (
+          <MLCRegistrationPrint
+            bodyId={mlcPrintBodyId}
+            onClose={() => setMlcPrintBodyId(null)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

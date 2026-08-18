@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import axios from 'axios';
 import { Receipt, Search, Plus, X, Calculator, CheckCircle, Trash2, Percent, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import BodyReleaseForm from '../components/release/BodyReleaseForm';
-import MortuaryBillPrint from './MortuaryBillPrint';
-import ServiceBillPrint from './ServiceBillPrint';
-import CombinedBillPrint from './CombinedBillPrint';
+// Lazy-loaded: these pull in html2pdf.js (a large PDF-generation library)
+// that's only needed when a user actually opens a print dialog.
+const MortuaryBillPrint = lazy(() => import('./MortuaryBillPrint'));
+const ServiceBillPrint = lazy(() => import('./ServiceBillPrint'));
+const CombinedBillPrint = lazy(() => import('./CombinedBillPrint'));
 
 import { API_BASE } from '../config.js';
 
@@ -1000,15 +1002,17 @@ function Billing() {
       )}
 
       {/* ---- PRINT BILL OVERLAYS ---- */}
-      {printBill && printBill.type === 'mortuary' && (
-        <MortuaryBillPrint billingId={printBill.id} onClose={() => setPrintBill(null)} />
-      )}
-      {printBill && printBill.type === 'service' && (
-        <ServiceBillPrint billingId={printBill.id} onClose={() => setPrintBill(null)} />
-      )}
-      {printBill && printBill.type === 'combined' && (
-        <CombinedBillPrint billingId={printBill.id} serviceId={printBill.serviceId} onClose={() => setPrintBill(null)} />
-      )}
+      <Suspense fallback={null}>
+        {printBill && printBill.type === 'mortuary' && (
+          <MortuaryBillPrint billingId={printBill.id} onClose={() => setPrintBill(null)} />
+        )}
+        {printBill && printBill.type === 'service' && (
+          <ServiceBillPrint billingId={printBill.id} onClose={() => setPrintBill(null)} />
+        )}
+        {printBill && printBill.type === 'combined' && (
+          <CombinedBillPrint billingId={printBill.id} serviceId={printBill.serviceId} onClose={() => setPrintBill(null)} />
+        )}
+      </Suspense>
     </div>
   );
 }

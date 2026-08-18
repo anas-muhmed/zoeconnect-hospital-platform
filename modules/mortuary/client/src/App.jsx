@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -17,34 +17,38 @@ import {
   ClipboardCheck,
   Tag
 } from 'lucide-react';
-import BodyRegistration from './pages/BodyRegistration';
-import PatientList from './pages/PatientList';
-import CabinAllocation from './pages/CabinAllocation';
-import Billing from './pages/Billing';
-import BodyRelease from './pages/BodyRelease';
-import CabinMaster from './pages/CabinMaster';
-import Reports from './pages/Reports';
-import HousekeepingDashboard from './pages/HousekeepingDashboard';
-import ServiceMaster from './pages/ServiceMaster';
-import Auth from './pages/auth';
-import ForgotPassword from './pages/forgot_password';
-import Dashboard_Base from './pages/dashboard_base';
-import AdminLogin from './pages/adminlogin';
-import SuperAdminLogin from './pages/superadminlogin';
-import AdminDashboard from './pages/admin_dashboard';
-import SuperAdminDashboard from './pages/superadmin_dashboard';
-import BillingSettings from './pages/BillingSettings';
-import ResetOwnPassword from './pages/ResetOwnPassword';
-import ReleaseHistory from './pages/ReleaseHistory';
-import UserApprovals from './pages/UserApprovals';
-import UserGuide from './pages/UserGuide';
-import ChangePassword from './pages/ChangePassword';
+
+// Route-level code splitting: each page becomes its own chunk, loaded on
+// navigation instead of all being bundled into a single ~2MB main chunk.
+const BodyRegistration = lazy(() => import('./pages/BodyRegistration'));
+const PatientList = lazy(() => import('./pages/PatientList'));
+const CabinAllocation = lazy(() => import('./pages/CabinAllocation'));
+const Billing = lazy(() => import('./pages/Billing'));
+const BodyRelease = lazy(() => import('./pages/BodyRelease'));
+const CabinMaster = lazy(() => import('./pages/CabinMaster'));
+const Reports = lazy(() => import('./pages/Reports'));
+const HousekeepingDashboard = lazy(() => import('./pages/HousekeepingDashboard'));
+const ServiceMaster = lazy(() => import('./pages/ServiceMaster'));
+const Auth = lazy(() => import('./pages/auth'));
+const ForgotPassword = lazy(() => import('./pages/forgot_password'));
+const Dashboard_Base = lazy(() => import('./pages/dashboard_base'));
+const AdminLogin = lazy(() => import('./pages/adminlogin'));
+const SuperAdminLogin = lazy(() => import('./pages/superadminlogin'));
+const AdminDashboard = lazy(() => import('./pages/admin_dashboard'));
+const SuperAdminDashboard = lazy(() => import('./pages/superadmin_dashboard'));
+const BillingSettings = lazy(() => import('./pages/BillingSettings'));
+const ResetOwnPassword = lazy(() => import('./pages/ResetOwnPassword'));
+const ReleaseHistory = lazy(() => import('./pages/ReleaseHistory'));
+const UserApprovals = lazy(() => import('./pages/UserApprovals'));
+const UserGuide = lazy(() => import('./pages/UserGuide'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 
 function App() {
 
   return (
-    
-      
+
+
+            <Suspense fallback={<div style={{padding: '2rem', textAlign: 'center'}}>Loading...</div>}>
             <Routes>
               <Route path="/signup" element={<Auth/>}/>
               <Route path="/" element={<Auth/>}/>
@@ -77,8 +81,9 @@ function App() {
           
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          
-   
+            </Suspense>
+
+
   );
 }
 
